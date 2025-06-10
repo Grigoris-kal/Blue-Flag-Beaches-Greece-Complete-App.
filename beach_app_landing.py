@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Blue Flag Beaches Greece - Smart Device Detection Landing Page
-Main entry point that detects device and shows appropriate interface
+Blue Flag Beaches Greece - Smart Device Detection Landing Page  
+Uses URL parameters for reliable device detection and automatic app switching
 """
 
 import streamlit as st
@@ -26,13 +26,13 @@ def get_base64_of_image(path):
         pass
     return None
 
-def auto_detect_and_redirect():
-    """Auto-detect device and redirect to appropriate version"""
+def show_device_detection():
+    """Show device detection interface with automatic redirect"""
     
     # Get Blue Flag image
     img_base64 = get_base64_of_image("blue_flag_image.ico")
     
-    # Landing page header with auto-redirect message
+    # Landing page header
     if img_base64:
         st.markdown(f"""
         <div style="background: linear-gradient(135deg, #0053ac 0%, #0077c8 100%); 
@@ -65,42 +65,35 @@ def auto_detect_and_redirect():
         </div>
         """, unsafe_allow_html=True)
 
-    # Auto-detection script that sets session state
+    # Auto-detection script using URL parameters (reliable method)
     detection_script = """
     <script>
-    function detectDeviceAndSetState() {
+    function detectDeviceAndRedirect() {
         const userAgent = navigator.userAgent.toLowerCase();
         const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile/.test(userAgent);
         const isTablet = /ipad|android(?!.*mobile)|tablet/.test(userAgent);
         
+        // Get current URL without parameters
+        const baseUrl = window.location.origin + window.location.pathname;
+        
         if (isMobile || isTablet) {
-            console.log('Mobile/Tablet detected - setting mobile version');
-            // Use Streamlit's method to set session state
-            window.parent.postMessage({
-                type: 'streamlit:setSessionState',
-                data: {selected_version: 'mobile'}
-            }, '*');
+            console.log('Mobile/Tablet detected - redirecting with mobile parameter');
+            window.location.href = baseUrl + '?device=mobile';
         } else {
-            console.log('Desktop detected - setting desktop version');
-            // Use Streamlit's method to set session state  
-            window.parent.postMessage({
-                type: 'streamlit:setSessionState', 
-                data: {selected_version: 'desktop'}
-            }, '*');
+            console.log('Desktop detected - redirecting with desktop parameter');
+            window.location.href = baseUrl + '?device=desktop';
         }
     }
     
-    // Run detection immediately
-    detectDeviceAndSetState();
-    
-    // Also trigger after a short delay to ensure Streamlit is ready
-    setTimeout(detectDeviceAndSetState, 1000);
+    // Run detection after a brief delay to show the detection message
+    setTimeout(detectDeviceAndRedirect, 1500);
     </script>
     
-    <div style="text-align: center; padding: 20px;">
-        <div style="display: inline-block; width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #0066cc; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px;"></div>
-        <h3>🔍 Detecting Your Device</h3>
-        <p>Please wait while we determine the best experience for you...</p>
+    <div style="text-align: center; padding: 40px;">
+        <div style="display: inline-block; width: 50px; height: 50px; border: 4px solid #f3f3f3; border-top: 4px solid #0066cc; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;"></div>
+        <h3 style="color: #0066cc;">🔍 Detecting Your Device</h3>
+        <p style="color: #666; font-size: 16px;">Please wait while we determine the best experience for you...</p>
+        <p style="color: #999; font-size: 14px; margin-top: 20px;">This will only take a moment</p>
     </div>
     
     <style>
@@ -111,63 +104,51 @@ def auto_detect_and_redirect():
     </style>
     """
     
-    components.html(detection_script, height=200)
-    
-    # Auto-trigger session state check
-    if 'device_detected' not in st.session_state:
-        st.session_state.device_detected = True
-        st.rerun()
+    components.html(detection_script, height=300)
 
 def show_desktop_app():
     """Show desktop version"""
     try:
-        # Import and run desktop app
-        exec(open('flag.py').read())
+        # Import desktop app functions and run them
+        exec(open('flag.py').read(), {'__name__': '__main__'})
     except Exception as e:
         st.error(f"Error loading desktop app: {e}")
-        st.info("Please try refreshing the page or contact support.")
+        st.info("Please try refreshing the page.")
+        if st.button("🔄 Retry"):
+            st.rerun()
 
 def show_mobile_app():
     """Show mobile version"""
     try:
-        # Import and run mobile app  
-        exec(open('mobile_beach_app.py').read())
+        # Import mobile app functions and run them
+        exec(open('mobile_beach_app.py').read(), {'__name__': '__main__'})
     except Exception as e:
         st.error(f"Error loading mobile app: {e}")
-        st.info("Please try refreshing the page or contact support.")
+        st.info("Please try refreshing the page.")
+        if st.button("🔄 Retry"):
+            st.rerun()
 
 def main():
-    """Main application logic"""
+    """Main application logic with URL parameter detection"""
     
-    # Initialize session state
-    if 'selected_version' not in st.session_state:
-        st.session_state.selected_version = None
+    # Check URL parameters for device type
+    device_type = st.query_params.get("device")
     
-    # Show appropriate interface based on selection
-    if st.session_state.selected_version == "desktop":
-        # Add back button
-        if st.button("← Back to Home", type="secondary"):
-            st.session_state.selected_version = None
-            st.rerun()
-        
-        st.markdown("---")
+    if device_type == "desktop":
+        # Show desktop app
+        st.markdown("### 🖥️ Desktop Version")
         show_desktop_app()
         
-    elif st.session_state.selected_version == "mobile":
-        # Add back button
-        if st.button("← Back to Home", type="secondary"):
-            st.session_state.selected_version = None
-            st.rerun()
-            
-        st.markdown("---")
+    elif device_type == "mobile":
+        # Show mobile app  
+        st.markdown("### 📱 Mobile Version")
         show_mobile_app()
         
     else:
-        # Show landing page with auto-detection
-        auto_detect_and_redirect()
-
-    # Footer
-    if st.session_state.selected_version is None:
+        # Show device detection page (first visit)
+        show_device_detection()
+        
+        # Footer for detection page
         st.markdown("""
         ---
         <div style="text-align: center; color: #666; font-size: 0.9em; padding: 20px;">
