@@ -15,18 +15,21 @@ from datetime import datetime
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 1) Load environment variables and page config
-# ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────ok?
 load_dotenv()
 JAWG_TOKEN = os.getenv('JAWG_TOKEN') or "f2wwvI5p3NCM9DJXW3xs7LZLcaY6AM9HKMYxlxdZWOQ9UeuFGirPhlHYpaOcLtLV"
 COPERNICUS_USERNAME = os.getenv('COPERNICUS_USERNAME')
 COPERNICUS_PASSWORD = os.getenv('COPERNICUS_PASSWORD')
 
-st.set_page_config(
-    page_title="Blue Flag Beaches of Greece",
-    page_icon="🌊",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
+# Only set page config if this is the main script
+if __name__ == "__main__":
+    st.set_page_config(
+        page_title="Blue Flag Beaches of Greece",
+        page_icon="🌊",
+        layout="wide",
+        initial_sidebar_state="collapsed"
+    )
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 2) Load pre-generated depth database
