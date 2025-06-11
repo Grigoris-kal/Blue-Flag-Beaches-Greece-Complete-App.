@@ -913,20 +913,12 @@ def main():
         """, unsafe_allow_html=True)
       
 
-        with st.spinner("🗺️ Loading beach map with pre-loaded depth data..."):
-            # Convert DataFrame to JSON for caching
-            df_json = display_df.to_json(date_format="iso")
-            
-            # Get cached HTML
-            map_html = build_map_html(df_json, JAWG_TOKEN)
-            
-            # Display using components
-            st.components.v1.html(
-                map_html,
-                height=650,
-                scrolling=False
-            )
-            
+       with st.spinner("🗺️ Loading beach map with pre-loaded depth data..."):
+    # Create map directly instead of caching HTML
+    beach_map = create_beach_map(display_df)
+    
+    # Display using st_folium
+    st_folium(beach_map, width=None, height=650)            
         # Inject CSS to remove the white box after map renders
         st.markdown("""
 <style>
