@@ -87,12 +87,12 @@ def main():
     app = query_params.get('app')
     
     if app == 'flag':
-        # Load desktop app ONLY - no landing page content
+        # Let desktop app handle its own page config and styling
         from flag import main as desktop_main
         desktop_main()
         return
     elif app == 'mobile_beach_app':
-        # Load mobile app ONLY - no landing page content
+        # Let mobile app handle its own page config and styling  
         from mobile_beach_app import main as mobile_main
         mobile_main()
         return
@@ -102,8 +102,7 @@ def main():
         page_title="🏖️ Blue Flag Beaches Greece",
         page_icon="🌊",
         layout="centered"
-    )
-    
+    )    
     # Function to encode image to base64
     def get_base64_of_image(path):
         try:
