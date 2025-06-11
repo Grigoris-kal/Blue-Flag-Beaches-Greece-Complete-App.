@@ -15,17 +15,18 @@ from datetime import datetime
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 1) Load environment variables and page config
-# ─────────────────────────────────────────────────────────────────────────────ok?
+# ─────────────────────────────────────────────────────────────────────────────
 load_dotenv()
 JAWG_TOKEN = os.getenv('JAWG_TOKEN') or "f2wwvI5p3NCM9DJXW3xs7LZLcaY6AM9HKMYxlxdZWOQ9UeuFGirPhlHYpaOcLtLV"
+COPERNICUS_USERNAME = os.getenv('COPERNICUS_USERNAME')
+COPERNICUS_PASSWORD = os.getenv('COPERNICUS_PASSWORD')
 
-if __name__ == "__main__":
-    st.set_page_config(
-        page_title="Blue Flag Beaches of Greece",
-        page_icon="🌊",
-        layout="wide",
-        initial_sidebar_state="collapsed"
-    )
+st.set_page_config(
+    page_title="Blue Flag Beaches of Greece",
+    page_icon="🌊",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 2) Load pre-generated depth database
@@ -106,8 +107,6 @@ def get_depth_html_for_beach(lat, lon):
         # Determine confidence indicator
         confidence_icon = "🎯" if "Manual research" in depth_info.get('source', '') else "🔮"
         
-       # In your flag.py file, find the get_depth_html_for_beach function and replace the html section with this:
-
         html = f"""
         <div style="background:rgba(230,250,255,0.9);padding:12px;margin:8px 0;border-radius:6px;border-left:4px solid #0066cc;">
             <div style="font-size:18px;font-weight:bold;color:#0066cc;margin-bottom:8px;">{confidence_icon} Water Depth Info</div>
@@ -278,7 +277,7 @@ def create_searchable_columns(df):
 
 @st.cache_data(ttl=3600)
 def load_cached_data():
-    save_dir = "."  # Current directory (same as Python files)
+    save_dir = os.path.join(os.path.expanduser("~"), "MyAPIs", "Blue_Flags_Greece_API", "flag_backend")
     files_to_try = [
         ("blueflag_greece_scraped.csv", "scraped"),
         ("blueflag_greece_sample.csv", "sample"),
@@ -331,10 +330,10 @@ def geocode_with_nominatim(df):
             if 'Χαλκιδική' in row['Region'] or 'ΧΑΛΚΙΔΙΚΗΣ' in row['Region']:
                 queries.insert(0, f"{clean_name} beach, Halkidiki, Greece")
                 queries.insert(1, f"{clean_name}, Chalkidiki, Greece")
-            if 'Κρήτη' in row['Region'] or 'ΗΡΑΚЛЕИΥ' in row['Region'] or 'ΧΑΝΙΩΝ' in row['Region'] or 'ΛΑΣИθИΟΥ' in row['Region'] or 'ΡЕΘУМΝΟΥ' in row['Region']:
+            if 'Κρήτη' in row['Region'] or 'ΗΡΑΚΛΕΙΟΥ' in row['Region'] or 'ΧΑΝΙΩΝ' in row['Region'] or 'ΛΑΣΙΘΙΟΥ' in row['Region'] or 'ΡΕΘΥΜΝΟΥ' in row['Region']:
                 queries.insert(0, f"{clean_name} beach, Crete, Greece")
                 queries.insert(1, f"{clean_name}, Crete, Greece")
-            if 'ΡОΔУ' in row['Region'] or 'ΡОДУ' in row['Region']:
+            if 'ΡΟΔΟΥ' in row['Region'] or 'ΡΟΔΟΥ' in row['Region']:
                 queries.insert(0, f"{clean_name} beach, Rhodes, Greece")
                 queries.insert(1, f"{clean_name}, Rhodes island, Greece")
             found = False
@@ -411,7 +410,7 @@ def get_wave_conditions(wave_height, wave_period):
 def load_weather_cache():
     """Load pre-fetched weather data from cache file"""
     try:
-        save_dir = os.path.dirname(os.path.abspath(__file__))
+        save_dir = os.path.join(os.path.expanduser("~"), "MyAPIs", "Blue_Flags_Greece_API", "flag_backend")
         cache_path = os.path.join(save_dir, "weather_cache.json")
         
         if os.path.exists(cache_path):
@@ -423,20 +422,51 @@ def load_weather_cache():
         print(f"Error loading weather cache: {e}")
         return {}
 
+def find_weather_for_beach(lat, lon, weather_cache):
+    """Find weather data for a beach with flexible coordinate matching"""
+    
+    # Try exact match first (original method)
+    exact_key = f"{lat}_{lon}"
+    if exact_key in weather_cache:
+        return weather_cache[exact_key]
+    
+    # Try with full precision (new beaches use this format)
+    full_precision_key = f"{float(lat)}_{float(lon)}"
+    if full_precision_key in weather_cache:
+        return weather_cache[full_precision_key]
+    
+    # Try finding nearby coordinates (within 0.001 degrees ~ 100m)
+    for cache_key, weather_data in weather_cache.items():
+        if '_' not in cache_key:
+            continue
+            
+        try:
+            cache_lat_str, cache_lon_str = cache_key.split('_')
+            cache_lat = float(cache_lat_str)
+            cache_lon = float(cache_lon_str)
+            
+            # Check if coordinates are very close (within ~100 meters)
+            if abs(cache_lat - lat) < 0.001 and abs(cache_lon - lon) < 0.001:
+                return weather_data
+                
+        except (ValueError, IndexError):
+            continue
+    
+    return None
+
 def create_beach_map(df):
     """Create Folium map with Jawg Sunny style and pre-loaded weather + depth data."""
     GREECE_BOUNDS = [
         [30.5, 16.0],  # Much more permissive bounds to include all of Crete
-         [42.0, 29.0]   # Northern Greece
-]
+        [45.0, 35.0]   # Northern Greece
+    ]
         
     m = folium.Map(
-    location=[39.0742, 21.8243],
-    zoom_start=6.0,
-    min_zoom=4,    # Allow even more zoom out
-    max_zoom=15,   
-    max_bounds=True,
-        
+        location=[39.0742, 21.8243],
+        zoom_start=6.0,
+        min_zoom=4,    # Allow even more zoom out
+        max_zoom=15,   
+        max_bounds=True,
         tiles=f"https://tile.jawg.io/jawg-sunny/{'{z}'}/{'{x}'}/{'{y}'}.png?access-token={JAWG_TOKEN}",
         attr='© Jawg Maps | © OpenStreetMap | Weather data © Open-Meteo.com | Depth data © GEBCO/EMODnet',
         control_scale=True
@@ -455,11 +485,11 @@ def create_beach_map(df):
 
     for idx, row in df.iterrows():
         lat, lon = row['Latitude'], row['Longitude']
-        weather_key = f"{lat}_{lon}"
         
-        # Check if we have cached weather for this location
-        if weather_key in weather_cache:
-            weather = weather_cache[weather_key]
+        # NEW: Use the improved weather lookup function
+        weather = find_weather_for_beach(lat, lon, weather_cache)
+        
+        if weather:
             wind_arrow = get_wind_arrow(weather.get('wind_direction'))
             wave_conditions = get_wave_conditions(weather.get('wave_height'), weather.get('wave_period'))
             
@@ -818,7 +848,7 @@ def main():
     with col1:
         search_query = st.text_input(
             "search",  # Hidden label
-            placeholder="🔍 Search beaches: Try Ammoudara, Faliraki, Myrtos...",
+            placeholder="🔍 Search beaches: If map becomes transparent, beach info is not available 😊. At least you get a great view ! ",
             label_visibility="hidden"  # Completely hide label and its container
         )
     with col2:
@@ -836,9 +866,32 @@ def main():
             # Results found - just show on map, no message
             pass
         else:
+            # Option 1: Completely transparent messages
+            st.markdown("""
+            <style>
+            .stAlert {
+                background-color: rgba(255, 255, 255, 0.0) !important;
+                border: none !important;
+                color: rgba(0, 0, 0, 0.0) !important;
+            }
+            .stAlert > div {
+                background-color: rgba(255, 255, 255, 0.0) !important;
+                border: none !important;
+                color: rgba(0, 0, 0, 0.0) !important;
+            }
+            .stAlert * {
+                color: rgba(0, 0, 0, 0.0) !important;
+                opacity: 0 !important;
+            }
+            </style>
+            """, unsafe_allow_html=True)
+            
             st.warning(f"No beaches found matching '{search_query}'")
             st.info("💡 Try popular beaches: Ammoudara, Faliraki, Myrtos, Elounda, Posidi")
             display_df = valid_coords_df.head(0)
+            
+            # Option 2: Or simply comment out the messages entirely
+            # display_df = valid_coords_df.head(0)
     else:
         display_df = valid_coords_df
         st.markdown(f"""
