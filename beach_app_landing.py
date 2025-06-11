@@ -114,8 +114,8 @@ def main():
     """Main landing page function with routing"""
     
     # Check if we need to route to a specific app
-    query_params = st.experimental_get_query_params()
-    app = query_params.get('app', [None])[0]
+    query_params = st.query_params
+    app = query_params.get('app')
     
     if app == 'flag':
         # Load desktop app
