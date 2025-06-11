@@ -28,9 +28,9 @@ def detect_and_redirect():
         // Get current URL base
         const currentUrl = window.location.origin;
         
-        // Define URL-internal paths (match your file names in pages/ folder)
-        const mobileUrlInternal = currentUrl + '/mobile_beach_app';  // -> pages/mobile_beach_app.py
-        const desktopUrlInternal = currentUrl + '/flag';             // -> pages/flag.py
+        // Define URL-internal paths (using query parameters - no folder changes needed)
+        const mobileUrlInternal = currentUrl + '/?app=mobile_beach_app';  // -> mobile_beach_app.py
+        const desktopUrlInternal = currentUrl + '/?app=flag';             // -> flag.py
         
         // Redirect based on device type to URL-internal
         if (isMobile || isTablet) {
@@ -102,8 +102,8 @@ def detect_and_redirect():
         
         <div class="manual-links">
             <p><strong>Manual Selection:</strong></p>
-            <a href="/flag">🖥️ Desktop Version</a>
-            <a href="/mobile_beach_app">📱 Mobile Version</a>
+            <a href="/?app=flag">🖥️ Desktop Version</a>
+            <a href="/?app=mobile_beach_app">📱 Mobile Version</a>
         </div>
     </div>
     """
@@ -111,7 +111,24 @@ def detect_and_redirect():
     components.html(redirect_script, height=400)
 
 def main():
-    """Main landing page function"""
+    """Main landing page function with routing"""
+    
+    # Check if we need to route to a specific app
+    query_params = st.experimental_get_query_params()
+    app = query_params.get('app', [None])[0]
+    
+    if app == 'flag':
+        # Load desktop app
+        from flag import main as desktop_main
+        desktop_main()
+        return
+    elif app == 'mobile_beach_app':
+        # Load mobile app
+        from mobile_beach_app import main as mobile_main
+        mobile_main()
+        return
+    
+    # Otherwise show landing page
     
     # Function to encode image to base64
     def get_base64_of_image(path):
