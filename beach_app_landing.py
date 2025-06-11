@@ -16,7 +16,22 @@ st.set_page_config(
 )
 
 def main():
-    """Clean landing page with JavaScript redirect only"""
+    """Clean landing page with JavaScript redirect and routing"""
+    
+    # Check if we need to route to a specific app
+    query_params = st.query_params
+    app = query_params.get('app')
+    
+    if app == 'flag':
+        # Let desktop app handle its own page config and styling
+        from flag import main as desktop_main
+        desktop_main()
+        return
+    elif app == 'mobile_beach_app':
+        # Let mobile app handle its own page config and styling  
+        from mobile_beach_app import main as mobile_main
+        mobile_main()
+        return
     
     # Function to encode image to base64
     def get_base64_of_image(path):
@@ -79,10 +94,10 @@ def main():
         
         if (isMobile || isTablet) {
             console.log('Mobile/Tablet detected - redirecting to mobile app');
-            window.location.href = currentUrl + '/mobile_beach_app.py';
+            window.location.href = currentUrl + '/?app=mobile_beach_app';
         } else {
             console.log('Desktop detected - redirecting to desktop app');
-            window.location.href = currentUrl + '/flag.py';
+            window.location.href = currentUrl + '/?app=flag';
         }
     }
     
