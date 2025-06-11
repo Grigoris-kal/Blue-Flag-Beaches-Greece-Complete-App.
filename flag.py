@@ -901,7 +901,7 @@ def main():
             
             # Option 2: Or simply comment out the messages entirely
             # display_df = valid_coords_df.head(0)
-  else:
+    else:
     display_df = valid_coords_df
     st.markdown(f"""
     <div style="background: rgba(255, 255, 255, 0.0); padding:10px; border-radius:8px; margin-bottom:10px;">
