@@ -799,8 +799,14 @@ def main():
                        font-family: 'Arial', sans-serif;
                        font-size: 36px;
                        font-weight: bold;">
-                <img src="data:image/png;base64,{img_base64}" style="height: 50px; margin-right: 15px; filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.5));"> 
-                Blue Flag Beaches Greece
+                <img src="data:image/png;base64,{img_base64}" style="height: 50px; 
+                                                            margin-right: 15px; 
+                                                            padding: 8px; 
+                                                            background-color: white; 
+                                                            border-radius: 8px; 
+                                                            border: 2px solid #ccc;
+                                                            filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.5));"> 
+        Blue Flag Beaches Greece
             </h1>
         </div>
         """
