@@ -8,13 +8,6 @@ import streamlit as st
 import streamlit.components.v1 as components
 import base64
 
-# Set page config for landing page
-st.set_page_config(
-    page_title="🏖️ Blue Flag Beaches Greece",
-    page_icon="🌊",
-    layout="centered"
-)
-
 def detect_and_redirect():
     """Auto-detect device and redirect to appropriate URL-internal"""
     
@@ -129,6 +122,13 @@ def main():
         return
     
     # ONLY show landing page if no app parameter - everything below this line
+    
+    # Set page config for landing page only
+    st.set_page_config(
+        page_title="🏖️ Blue Flag Beaches Greece",
+        page_icon="🌊",
+        layout="centered"
+    )
     
     # Function to encode image to base64
     def get_base64_of_image(path):
