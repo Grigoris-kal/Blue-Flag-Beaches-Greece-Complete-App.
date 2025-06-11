@@ -278,7 +278,7 @@ def create_searchable_columns(df):
 
 @st.cache_data(ttl=3600)
 def load_cached_data():
-    save_dir = os.path.join(os.path.expanduser("~"), "MyAPIs", "Blue_Flags_Greece_API", "flag_backend")
+    save_dir = os.path.dirname(__file__)
     files_to_try = [
         ("blueflag_greece_scraped.csv", "scraped"),
         ("blueflag_greece_sample.csv", "sample"),
