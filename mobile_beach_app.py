@@ -49,7 +49,7 @@ def transliterate_greek_to_latin(text):
 
 def load_beach_data():
     """Load beach data from the same source as main app"""
-    save_dir = os.path.join(os.path.expanduser("~"), "MyAPIs", "Blue_Flags_Greece_API", "flag_backend")
+    save_dir = os.path.dirname(__file__)
     csv_path = os.path.join(save_dir, "blueflag_greece_scraped.csv")
     
     if os.path.exists(csv_path):
