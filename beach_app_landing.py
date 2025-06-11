@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Blue Flag Beaches Greece - Landing Page with URL-internal Redirects
-User sees 1 URL, system uses URL-internal for routing
+Blue Flag Beaches Greece - Clean Landing Page with Automatic Detection Only
+User sees 1 URL, automatic device detection and redirect
 """
 
 import streamlit as st
@@ -21,16 +21,16 @@ def detect_and_redirect():
         // Get current URL base
         const currentUrl = window.location.origin;
         
-        // Define URL-internal paths (using query parameters - no folder changes needed)
-        const mobileUrlInternal = currentUrl + '/?app=mobile_beach_app';  // -> mobile_beach_app.py
-        const desktopUrlInternal = currentUrl + '/?app=flag';             // -> flag.py
+        // Define URL-internal paths
+        const mobileUrlInternal = currentUrl + '/?app=mobile_beach_app';
+        const desktopUrlInternal = currentUrl + '/?app=flag';
         
-        // Redirect based on device type to URL-internal
+        // Redirect based on device type
         if (isMobile || isTablet) {
-            console.log('Mobile/Tablet detected - redirecting to URL-internal: mobile_beach_app');
+            console.log('Mobile/Tablet detected - redirecting to mobile version');
             window.location.href = mobileUrlInternal;
         } else {
-            console.log('Desktop detected - redirecting to URL-internal: flag');
+            console.log('Desktop detected - redirecting to desktop version');
             window.location.href = desktopUrlInternal;
         }
     }
@@ -62,24 +62,6 @@ def detect_and_redirect():
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
     }
-    .manual-links {
-        margin-top: 20px;
-        padding-top: 20px;
-        border-top: 1px solid rgba(255,255,255,0.3);
-    }
-    .manual-links a {
-        color: #FFD700;
-        text-decoration: none;
-        margin: 0 15px;
-        padding: 8px 16px;
-        border: 1px solid #FFD700;
-        border-radius: 5px;
-        transition: all 0.3s ease;
-    }
-    .manual-links a:hover {
-        background-color: #FFD700;
-        color: #0053ac;
-    }
     </style>
     
     <div class="redirect-container">
@@ -92,12 +74,6 @@ def detect_and_redirect():
             📱 Mobile users → Touch-optimized PyDeck interface<br>
             🖥️ Desktop users → Full-featured Folium map
         </p>
-        
-        <div class="manual-links">
-            <p><strong>Manual Selection:</strong></p>
-            <a href="/?app=flag">🖥️ Desktop Version</a>
-            <a href="/?app=mobile_beach_app">📱 Mobile Version</a>
-        </div>
     </div>
     """
     
@@ -121,9 +97,7 @@ def main():
         mobile_main()
         return
     
-    # ONLY show landing page if no app parameter - everything below this line
-    
-    # Set page config for landing page only
+    # ONLY show landing page if no app parameter
     st.set_page_config(
         page_title="🏖️ Blue Flag Beaches Greece",
         page_icon="🌊",
