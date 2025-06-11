@@ -277,7 +277,7 @@ def create_searchable_columns(df):
 
 @st.cache_data(ttl=3600)
 def load_cached_data():
-    save_dir = os.path.join(os.path.expanduser("~"), "MyAPIs", "Blue_Flags_Greece_API", "flag_backend")
+    save_dir = os.path.dirname(os.path.abspath(__file__))
     files_to_try = [
         ("blueflag_greece_scraped.csv", "scraped"),
         ("blueflag_greece_sample.csv", "sample"),
@@ -410,7 +410,7 @@ def get_wave_conditions(wave_height, wave_period):
 def load_weather_cache():
     """Load pre-fetched weather data from cache file"""
     try:
-        save_dir = os.path.join(os.path.expanduser("~"), "MyAPIs", "Blue_Flags_Greece_API", "flag_backend")
+        save_dir = os.path.dirname(os.path.abspath(__file__))
         cache_path = os.path.join(save_dir, "weather_cache.json")
         
         if os.path.exists(cache_path):
