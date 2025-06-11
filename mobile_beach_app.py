@@ -72,7 +72,7 @@ def load_beach_data():
 def load_weather_cache():
     """Load weather data from cache"""
     try:
-        save_dir = os.path.join(os.path.expanduser("~"), "MyAPIs", "Blue_Flags_Greece_API", "flag_backend")
+        save_dir = os.path.dirname(os.path.abspath(__file__))
         cache_path = os.path.join(save_dir, "weather_cache.json")
         
         if os.path.exists(cache_path):
@@ -111,7 +111,7 @@ def create_mobile_map(df, weather_cache):
     
     # Load depth database
     try:
-        save_dir = os.path.join(os.path.expanduser("~"), "MyAPIs", "Blue_Flags_Greece_API", "flag_backend")
+        save_dir = os.path.dirname(os.path.abspath(__file__))
         depth_path = os.path.join(save_dir, "beach_depth_database.json")
         
         if os.path.exists(depth_path):
@@ -303,7 +303,7 @@ def main():
 
     # Add same background as main app
     try:
-        save_dir = os.path.join(os.path.expanduser("~"), "MyAPIs", "Blue_Flags_Greece_API", "flag_backend")
+        save_dir = os.path.dirname(os.path.abspath(__file__))
         bg_path = os.path.join(save_dir, "voidokoilia_edited.jpg")
         
         if os.path.exists(bg_path):
