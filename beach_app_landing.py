@@ -44,7 +44,7 @@ def main():
             layout="centered"
         )
     
-    # Rest of your landing page code continues here...
+    
     # Function to encode image to base64
     def get_base64_of_image(path):
         # ... rest stays the same
