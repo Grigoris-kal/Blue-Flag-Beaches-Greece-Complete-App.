@@ -29,34 +29,26 @@ JAWG_TOKEN = os.getenv('JAWG_TOKEN') or "f2wwvI5p3NCM9DJXW3xs7LZLcaY6AM9HKMYxlxd
 COPERNICUS_USERNAME = os.getenv('COPERNICUS_USERNAME')
 COPERNICUS_PASSWORD = os.getenv('COPERNICUS_PASSWORD')
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # 2) Load pre-generated depth database
 # ─────────────────────────────────────────────────────────────────────────────
 
 @st.cache_data(ttl=3600)
 def load_depth_database():
-    """Load pre-generated depth database from JSON file"""
-    depth_files = [
-        "beach_depth_database.json",
-        "./beach_depth_database.json",
-        os.path.join(os.path.dirname(__file__), "beach_depth_database.json"),
-        os.path.join(os.getcwd(), "beach_depth_database.json")
-    ]
-    
-    for filepath in depth_files:
-        if os.path.exists(filepath):
-            try:
-                with open(filepath, 'r', encoding='utf-8') as f:
-                    database = json.load(f)
-                print(f"✅ Loaded depth database from: {filepath}")
-                return database, True
-            except Exception as e:
-                print(f"❌ Error loading depth database from {filepath}: {e}")
-                continue
-    
-    print("⚠️ No depth database found. Run depth_data_generator.py first!")
-    return {}, False
+    """Load pre-generated depth database from GitHub repository"""
+    try:
+        github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/beach_depth_database.json"
+        response = requests.get(github_url)
+        if response.status_code == 200:
+            database = response.json()
+            print("✅ Loaded depth database from GitHub")
+            return database, True
+        else:
+            print("⚠️ Could not load depth database from GitHub")
+            return {}, False
+    except Exception as e:
+        print(f"❌ Error loading depth database from GitHub: {e}")
+        return {}, False
 
 # Load depth database at startup
 DEPTH_DATABASE, DEPTH_AVAILABLE = load_depth_database()
@@ -332,7 +324,7 @@ def geocode_with_nominatim(df):
             if 'Χαλκιδική' in row['Region'] or 'ΧΑΛΚΙΔΙΚΗΣ' in row['Region']:
                 queries.insert(0, f"{clean_name} beach, Halkidiki, Greece")
                 queries.insert(1, f"{clean_name}, Chalkidiki, Greece")
-            if 'Κρήτη' in row['Region'] or 'ΗΡΑΚΛΕΙΟΥ' in row['Region'] or 'ΧΑΝΙΩΝ' in row['Region'] or 'ΛΑΣΙΘΙΟΥ' in row['Region'] or 'ΡΕΘΥΜΝΟΥ' in row['Region']:
+            if 'Κρήτη' in row['Region'] or 'ΗΡΑΚΛΕΙΟΥ' in row['Region'] or 'ΧΑΝΙΩΝ' in row['Region'] or 'ΛΑΣΙΘΙΟΥ' in row['Region'] or 'ΡΕΘΥمΝΟΥ' in row['Region']:
                 queries.insert(0, f"{clean_name} beach, Crete, Greece")
                 queries.insert(1, f"{clean_name}, Crete, Greece")
             if 'ΡΟΔΟΥ' in row['Region'] or 'ΡΟΔΟΥ' in row['Region']:
@@ -410,14 +402,12 @@ def get_wave_conditions(wave_height, wave_period):
 
 @st.cache_data(ttl=300)  # Cache for 5 minutes
 def load_weather_cache():
-    """Load pre-fetched weather data from cache file"""
+    """Load pre-fetched weather data from GitHub repository"""
     try:
-        save_dir = os.path.dirname(os.path.abspath(__file__))
-        cache_path = os.path.join(save_dir, "weather_cache.json")
-        
-        if os.path.exists(cache_path):
-            with open(cache_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
+        github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/weather_cache.json"
+        response = requests.get(github_url)
+        if response.status_code == 200:
+            return response.json()
         else:
             return {}
     except Exception as e:
