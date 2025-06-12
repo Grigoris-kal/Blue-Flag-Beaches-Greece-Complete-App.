@@ -45,9 +45,7 @@ def main():
         )
     
     
-    # Function to encode image to base64
-    def get_base64_of_image(path):
-        # ... rest stays the same
+   
     # Function to encode image to base64
     def get_base64_of_image(path):
         try:
