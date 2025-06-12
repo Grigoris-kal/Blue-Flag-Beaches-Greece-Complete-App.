@@ -8,39 +8,46 @@ import streamlit as st
 import streamlit.components.v1 as components
 import base64
 
-# Check what app is being requested and set appropriate layout
-query_params = st.query_params
-app = query_params.get('app')
-
-if app == 'flag':
-    layout = "wide"     # Desktop needs wide layout for map
-elif app == 'mobile_beach_app':
-    layout = "centered" # Mobile works better with centered
-else:
-    layout = "centered" # Landing page default
-
-# Set page config based on destination
-st.set_page_config(
-    page_title="🏖️ Blue Flag Beaches Greece",
-    page_icon="blue_flag_imagei.ico",
-    layout=layout
-)
-
 def main():
     """Clean landing page with JavaScript redirect and routing"""
     
+    # Check if we need to route to a specific app
+    query_params = st.query_params
+    app = query_params.get('app')
+    
     if app == 'flag':
-        # Let desktop app handle its own thing
+        # Set wide layout for desktop and route
+        st.set_page_config(
+            page_title="Blue Flag Beaches of Greece",
+            page_icon="🌊",
+            layout="wide"
+        )
         from flag import main as desktop_main
         desktop_main()
         return
     elif app == 'mobile_beach_app':
-        # Let mobile app handle its own thing
+        # Set centered layout for mobile and route
+        st.set_page_config(
+            page_title="🏖️ Blue Flag Beaches Greece",
+            page_icon="blue_flag_imagei.ico",
+            layout="centered"
+        )
         from mobile_beach_app import main as mobile_main
         mobile_main()
         return
-       
-    # (device detection, redirect script, etc.)    
+    else:
+        # Landing page display (when no app parameter)
+        # Set centered layout for landing page
+        st.set_page_config(
+            page_title="🏖️ Blue Flag Beaches Greece",
+            page_icon="blue_flag_imagei.ico",
+            layout="centered"
+        )
+    
+    # Rest of your landing page code continues here...
+    # Function to encode image to base64
+    def get_base64_of_image(path):
+        # ... rest stays the same
     # Function to encode image to base64
     def get_base64_of_image(path):
         try:
@@ -54,6 +61,7 @@ def main():
     # Try to get Blue Flag image
     img_base64 = get_base64_of_image("blue_flag_image.png")
 
+   
     # Landing page header
     if img_base64:
         st.markdown(f"""
