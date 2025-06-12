@@ -53,7 +53,6 @@ def load_depth_database():
     return {}, False
 
 # Load depth database at startup
-DEPTH_DATABASE, DEPTH_AVAILABLE = load_depth_database()
 
 def get_depth_html_for_beach(lat, lon):
     """Get pre-generated depth HTML for a beach location"""
@@ -450,7 +449,7 @@ def find_weather_for_beach(lat, lon, weather_cache):
     
     return None
 
-def create_beach_map(df):
+def create_beach_map(df, depth_database=None, depth_available=False):
     """Create Folium map with Jawg Sunny style and pre-loaded weather + depth data."""
     GREECE_BOUNDS = [
         [30.5, 16.0],  # Much more permissive bounds to include all of Crete
@@ -511,7 +510,7 @@ def create_beach_map(df):
             """
         
         # Get pre-generated depth information (fast lookup)
-        depth_html = get_depth_html_for_beach(lat, lon)
+        depth_html = get_depth_html_for_beach(lat, lon, depth_database, depth_available)
         
         # Enhanced popup with depth information
         popup_content = f"""
@@ -557,6 +556,7 @@ def build_map_html(df_json, jawg_token):
 
 
 def main():
+    depth_database, depth_available = load_depth_database()
     # Function to encode image to base64
     def get_base64_of_image(path):
         with open(path, "rb") as img_file:
@@ -916,7 +916,7 @@ def main():
       
         with st.spinner("🗺️ Loading beach map with pre-loaded depth data..."):
             # Create map directly instead of caching HTML
-            beach_map = create_beach_map(display_df)
+            beach_map = create_beach_map(display_df, depth_database, depth_available)
             
             # Display using st_folium
             st_folium(beach_map, width=None, height=650)
