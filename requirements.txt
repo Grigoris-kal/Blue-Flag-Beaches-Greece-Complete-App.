@@ -1,28 +1,15 @@
-# Blue Flag Beaches Greece - Complete Requirements
-# Core Streamlit dependencies
-streamlit==1.28.0
-pandas==2.0.3
-numpy==1.24.4
+# Core dependencies for weather_updater.py
+requests>=2.31.0
+pandas>=2.0.0
+python-dotenv>=1.0.0
 
-# Map and visualization components
-folium==0.13.0
-streamlit-folium==0.13.0
-pydeck==0.8.1
+# For concurrent API calls
+futures3>=1.0.0
 
-# HTTP requests and API calls
-requests==2.31.0
+# Optional: if you need these for your specific setup
+numpy>=1.24.0
 
-# Environment variables
-python-dotenv==1.0.0
-
-# Geocoding and location services
-geopy==2.3.0
-
-# File and data processing
-json5==0.9.14
-
-# Date and time utilities (if needed)
-python-dateutil==2.8.2
-
-# Optional: For better performance
-psutil==5.9.5
+# Note: The script uses these APIs (no additional packages needed):
+# - Open-Meteo API (free, no key required)
+# - NOAA ERDDAP for sea temperature (free, no key required)
+# - Concurrent futures for parallel processing
