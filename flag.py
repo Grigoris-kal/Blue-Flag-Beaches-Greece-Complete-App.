@@ -18,6 +18,13 @@ from datetime import datetime
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+st.set_page_config(
+    page_title="Blue Flag Beaches of Greece",
+    page_icon="🌊",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
 load_dotenv()
 JAWG_TOKEN = os.getenv('JAWG_TOKEN') or "f2wwvI5p3NCM9DJXW3xs7LZLcaY6AM9HKMYxlxdZWOQ9UeuFGirPhlHYpaOcLtLV"
 COPERNICUS_USERNAME = os.getenv('COPERNICUS_USERNAME')
@@ -54,7 +61,7 @@ def load_depth_database():
 
 # Load depth database at startup
 
-def get_depth_html_for_beach(lat, lon, depth_database=None, depth_available=False):
+def get_depth_html_for_beach(lat, lon):
     """Get pre-generated depth HTML for a beach location"""
     if not depth_available:
         return """
@@ -449,7 +456,7 @@ def find_weather_for_beach(lat, lon, weather_cache):
     
     return None
 
-def create_beach_map(df, depth_database=None, depth_available=False):
+def create_beach_map(df):
     """Create Folium map with Jawg Sunny style and pre-loaded weather + depth data."""
     GREECE_BOUNDS = [
         [30.5, 16.0],  # Much more permissive bounds to include all of Crete
@@ -556,7 +563,7 @@ def build_map_html(df_json, jawg_token):
 
 
 def main():
-    depth_database, depth_available = load_depth_database()
+    DEPTH_DATABASE, DEPTH_AVAILABLE = load_depth_database()
     # Function to encode image to base64
     def get_base64_of_image(path):
         with open(path, "rb") as img_file:
