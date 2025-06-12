@@ -17,13 +17,6 @@ from datetime import datetime
 # 1) Load environment variables and page config
 # ─────────────────────────────────────────────────────────────────────────────
 
-if 'app' not in st.query_params:
-    st.set_page_config(
-        page_title="Blue Flag Beaches of Greece",
-        page_icon="🌊",
-        layout="wide",
-        initial_sidebar_state="collapsed"
-    )
 
 load_dotenv()
 JAWG_TOKEN = os.getenv('JAWG_TOKEN') or "f2wwvI5p3NCM9DJXW3xs7LZLcaY6AM9HKMYxlxdZWOQ9UeuFGirPhlHYpaOcLtLV"
