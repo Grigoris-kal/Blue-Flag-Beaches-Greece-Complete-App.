@@ -901,14 +901,13 @@ def main():
             
             # Option 2: Or simply comment out the messages entirely
             # display_df = valid_coords_df.head(0)
-    else:
+else:
     display_df = valid_coords_df
     st.markdown(f"""
     <div style="background: rgba(255, 255, 255, 0.0); padding:10px; border-radius:8px; margin-bottom:10px;">
         <span style="font-family: 'Arial', sans-serif; font-weight: bold; font-size: 18px; color: rgba(0, 102, 204, 0.0);">📍 Showing all {len(display_df)} beaches with coordinates on the map</span>
     </div>
     """, unsafe_allow_html=True)
-
 # ─────────────────────────────── Map Section ─────────────────────────────────
 if len(display_df) > 0:
     # Display weather data info
