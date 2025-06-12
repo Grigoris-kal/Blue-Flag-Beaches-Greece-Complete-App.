@@ -56,7 +56,7 @@ def load_depth_database():
 
 def get_depth_html_for_beach(lat, lon, depth_database=None, depth_available=False):
     """Get pre-generated depth HTML for a beach location"""
-    if not DEPTH_AVAILABLE:
+    if not depth_available:
         return """
         <div style="background:rgba(255,245,230,0.9);padding:6px;margin:5px 0;border-radius:4px;border-left:3px solid #ff9900;">
             <div style="font-size:11px;color:#cc6600;">
@@ -69,12 +69,12 @@ def get_depth_html_for_beach(lat, lon, depth_database=None, depth_available=Fals
     beach_key = f"{lat}_{lon}"
     
     # Try to find exact match first
-    if beach_key in DEPTH_DATABASE.get('beaches', {}):
+    if beach_key in depth_database.get('beaches', {}):
         depth_info = DEPTH_DATABASE['beaches'][beach_key]['depth_info']
     else:
         # Try to find nearby beach (within 0.001 degrees ~ 100m)
         found_beach = None
-        for key, beach_data in DEPTH_DATABASE.get('beaches', {}).items():
+        for key, beach_data in depth_database.get('beaches', {}).items():
             beach_lat = beach_data['lat']
             beach_lon = beach_data['lon']
             if abs(beach_lat - lat) < 0.001 and abs(beach_lon - lon) < 0.001:
