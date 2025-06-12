@@ -16,26 +16,25 @@ from datetime import datetime
 # ─────────────────────────────────────────────────────────────────────────────
 # 1) Load environment variables and page config
 # ─────────────────────────────────────────────────────────────────────────────
-
-st.set_page_config(
-    page_title="Blue Flag Beaches of Greece",
-    page_icon="blue_flag_imagei.ico",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
-
 load_dotenv()
 JAWG_TOKEN = os.getenv('JAWG_TOKEN') or "f2wwvI5p3NCM9DJXW3xs7LZLcaY6AM9HKMYxlxdZWOQ9UeuFGirPhlHYpaOcLtLV"
 COPERNICUS_USERNAME = os.getenv('COPERNICUS_USERNAME')
 COPERNICUS_PASSWORD = os.getenv('COPERNICUS_PASSWORD')
 
+st.set_page_config(
+    page_title="Blue Flag Beaches of Greece",
+    page_icon="🏖️",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 2) Load pre-generated depth database
 # ─────────────────────────────────────────────────────────────────────────────
 
-@st.cache_data(ttl=3600)
+@st.cache_data(persist=True)
 def load_depth_database():
-    """Load pre-generated depth database from GitHub repository"""
+    """Load pre-generated depth database from GitHub repository - ONCE ONLY"""
     try:
         github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/beach_depth_database.json"
         response = requests.get(github_url)
@@ -271,7 +270,7 @@ def create_searchable_columns(df):
 
 @st.cache_data(ttl=3600)
 def load_cached_data():
-    save_dir = os.path.dirname(os.path.abspath(__file__))
+    save_dir = os.path.join(os.path.expanduser("~"), "MyAPIs", "Blue_Flags_Greece_API", "flag_backend")
     files_to_try = [
         ("blueflag_greece_scraped.csv", "scraped"),
         ("blueflag_greece_sample.csv", "sample"),
@@ -324,7 +323,7 @@ def geocode_with_nominatim(df):
             if 'Χαλκιδική' in row['Region'] or 'ΧΑΛΚΙΔΙΚΗΣ' in row['Region']:
                 queries.insert(0, f"{clean_name} beach, Halkidiki, Greece")
                 queries.insert(1, f"{clean_name}, Chalkidiki, Greece")
-            if 'Κρήτη' in row['Region'] or 'ΗΡΑΚΛΕΙΟΥ' in row['Region'] or 'ΧΑΝΙΩΝ' in row['Region'] or 'ΛΑΣΙΘΙΟΥ' in row['Region'] or 'ΡΕΘΥمΝΟΥ' in row['Region']:
+            if 'Κρήτη' in row['Region'] or 'ΗΡΑΚΛΕΙΟΥ' in row['Region'] or 'ΧΑΝΙΩΝ' in row['Region'] or 'ΛΑΣΙΘΙΟΥ' in row['Region'] or 'ΡΕΘΥΜΝΟΥ' in row['Region']:
                 queries.insert(0, f"{clean_name} beach, Crete, Greece")
                 queries.insert(1, f"{clean_name}, Crete, Greece")
             if 'ΡΟΔΟΥ' in row['Region'] or 'ΡΟΔΟΥ' in row['Region']:
@@ -400,7 +399,7 @@ def get_wave_conditions(wave_height, wave_period):
     except:
         return 'N/A'
 
-@st.cache_data(ttl=300)  # Cache for 5 minutes
+@st.cache_data(ttl=1800)  # Cache for 30 minutes
 def load_weather_cache():
     """Load pre-fetched weather data from GitHub repository"""
     try:
@@ -791,14 +790,8 @@ def main():
                        font-family: 'Arial', sans-serif;
                        font-size: 36px;
                        font-weight: bold;">
-                <img src="data:image/png;base64,{img_base64}" style="height: 50px; 
-                                                            margin-right: 15px; 
-                                                            padding: 8px; 
-                                                            background-color: white; 
-                                                            border-radius: 8px; 
-                                                            border: 2px solid #ccc;
-                                                            filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.5));"> 
-        Blue Flag Beaches Greece
+                <img src="data:image/png;base64,{img_base64}" style="height: 50px; margin-right: 15px; filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.5));"> 
+                Blue Flag Beaches Greece
             </h1>
         </div>
         """
@@ -838,6 +831,9 @@ def main():
     df["Longitude"] = pd.to_numeric(df["Longitude"], errors="coerce")
     valid_coords_df = df.dropna(subset=["Latitude", "Longitude"]).copy()
 
+   
+    
+    # ───────────────────────────── Search Input ─────────────────────────────────
     # ───────────────────────────── Search Input ─────────────────────────────────
     col1, col2 = st.columns([3, 1])
     with col1:
@@ -850,8 +846,7 @@ def main():
         # Add spacing to align button with input field
         st.markdown("<div style='margin-top: 2.4rem;'></div>", unsafe_allow_html=True)
         search_button = st.button("🔍 Search", use_container_width=True)
-
-    # ───────────────────────────── Filter Logic ─────────────────────────────────
+   # ───────────────────────────── Filter Logic ─────────────────────────────────
     if search_query and (search_button or search_query):  # Trigger on button click or typing
         search_lower = search_query.lower()
         mask = df['Search_Text'].str.contains(search_lower, case=False, na=False)
@@ -885,6 +880,9 @@ def main():
             st.warning(f"No beaches found matching '{search_query}'")
             st.info("💡 Try popular beaches: Ammoudara, Faliraki, Myrtos, Elounda, Posidi")
             display_df = valid_coords_df.head(0)
+            
+            # Option 2: Or simply comment out the messages entirely
+            # display_df = valid_coords_df.head(0)
     else:
         display_df = valid_coords_df
         st.markdown(f"""
@@ -892,7 +890,7 @@ def main():
             <span style="font-family: 'Arial', sans-serif; font-weight: bold; font-size: 18px; color: rgba(0, 102, 204, 0.0);">📍 Showing all {len(display_df)} beaches with coordinates on the map</span>
         </div>
         """, unsafe_allow_html=True)
-    
+
     # ─────────────────────────────── Map Section ─────────────────────────────────
     if len(display_df) > 0:
         # Display weather data info
@@ -905,35 +903,43 @@ def main():
         </div>
         """, unsafe_allow_html=True)
       
+
         with st.spinner("🗺️ Loading beach map with pre-loaded depth data..."):
-            # Create map directly instead of caching HTML
-            beach_map = create_beach_map(display_df)
+            # Convert DataFrame to JSON for caching
+            df_json = display_df.to_json(date_format="iso")
             
-            # Display using st_folium
-            st_folium(beach_map, width=None, height=650)
-               
+            # Get cached HTML
+            map_html = build_map_html(df_json, JAWG_TOKEN)
+            
+            # Display using components
+            st.components.v1.html(
+                map_html,
+                height=650,
+                scrolling=False
+            )
+            
         # Inject CSS to remove the white box after map renders
         st.markdown("""
-        <style>
-            /* Target the white info box specifically */
-            div[style*="background: rgba(255, 255, 255, 0.65); padding:10px; border-radius:8px; margin-bottom:10px;"] {
-                color: #0066cc !important;
-                font-family: 'Arial', sans-serif !important;
-            }
-            
-            /* Make sure all text inside is blue */
-            div[style*="background: rgba(255, 255, 255, 0.65);"] * {
-                color: #0066cc !important;
-                -webkit-text-stroke: 0 !important;
-            }
-            
-            /* Keep the white background but make text blue */
-            div[style*="background: rgba(255, 255, 255, 0.65);"] {
-                background: rgba(255, 255, 255, 0.65) !important;
-            }
-        </style>
-        """, unsafe_allow_html=True)
-         
+<style>
+    /* Target the white info box specifically */
+    div[style*="background: rgba(255, 255, 255, 0.65); padding:10px; border-radius:8px; margin-bottom:10px;"] {
+        color: #0066cc !important;
+        font-family: 'Arial', sans-serif !important;
+    }
+    
+    /* Make sure all text inside is blue */
+    div[style*="background: rgba(255, 255, 255, 0.65);"] * {
+        color: #0066cc !important;
+        -webkit-text-stroke: 0 !important;
+    }
+    
+    /* Keep the white background but make text blue */
+    div[style*="background: rgba(255, 255, 255, 0.65);"] {
+        background: rgba(255, 255, 255, 0.65) !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+     
     else:
         st.warning("🔍 No beaches found matching your search or no coordinates available")
 
