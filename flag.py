@@ -17,10 +17,9 @@ from datetime import datetime
 # 1) Load environment variables and page config
 # ─────────────────────────────────────────────────────────────────────────────
 
-
 st.set_page_config(
     page_title="Blue Flag Beaches of Greece",
-    page_icon="🌊",
+    page_icon="blue_flag_imagei.ico",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -60,6 +59,7 @@ def load_depth_database():
     return {}, False
 
 # Load depth database at startup
+DEPTH_DATABASE, DEPTH_AVAILABLE = load_depth_database()
 
 def get_depth_html_for_beach(lat, lon):
     """Get pre-generated depth HTML for a beach location"""
@@ -98,34 +98,6 @@ def get_depth_html_for_beach(lat, lon):
                 </div>
             </div>
             """
-    
-    # Generate HTML based on depth info
-    if depth_info.get("depth_5m") != "Unknown" and depth_info.get("depth_5m") != "Error":
-        if isinstance(depth_info["depth_5m"], (int, float)):
-            depth_text = f"{depth_info['depth_5m']}m"
-        else:
-            depth_text = str(depth_info["depth_5m"])
-        
-        # Determine confidence indicator
-        confidence_icon = "🎯" if "Manual research" in depth_info.get('source', '') else "🔮"
-        
-        html = f"""
-        <div style="background:rgba(230,250,255,0.9);padding:12px;margin:8px 0;border-radius:6px;border-left:4px solid #0066cc;">
-            <div style="font-size:18px;font-weight:bold;color:#0066cc;margin-bottom:8px;">{confidence_icon} Water Depth Info</div>
-            <div style="font-size:16px;color:#004080;line-height:1.5;">
-                <strong>5m from shore:</strong> {depth_text}
-            </div>
-        </div>
-        """
-        return html
-    else:
-        return """
-        <div style="background:rgba(255,245,230,0.9);padding:6px;margin:5px 0;border-radius:4px;border-left:3px solid #ff9900;">
-            <div style="font-size:11px;color:#cc6600;">
-                🏊 Depth data not available for this beach
-            </div>
-        </div>
-        """
     
     # Generate HTML based on depth info
     if depth_info.get("depth_5m") != "Unknown" and depth_info.get("depth_5m") != "Error":
