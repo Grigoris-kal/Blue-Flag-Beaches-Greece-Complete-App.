@@ -98,25 +98,34 @@ def main():
     
     # Pure JavaScript redirect - no Python imports
     redirect_script = """
-    <script>
-    function detectAndRedirect() {
-        const userAgent = navigator.userAgent.toLowerCase();
-        const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile/.test(userAgent);
-        const isTablet = /ipad|android(?!.*mobile)|tablet/.test(userAgent);
-        
-        const currentUrl = window.location.origin;
-        
-        if (isMobile || isTablet) {
-            console.log('Mobile/Tablet detected - redirecting to mobile app');
-            window.location.href = currentUrl + '/?app=mobile_beach_app';
-        } else {
-            console.log('Desktop detected - redirecting to desktop app');
-            window.location.href = currentUrl + '/?app=flag';
+<script>
+    // Only run redirect if we're on the actual landing page (no app parameter)
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentApp = urlParams.get('app');
+
+    if (!currentApp) {
+        // Only run device detection if no app is specified
+        function detectAndRedirect() {
+            const userAgent = navigator.userAgent.toLowerCase();
+            const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile/.test(userAgent);
+            const isTablet = /ipad|android(?!.*mobile)|tablet/.test(userAgent);
+            
+            const currentUrl = window.location.origin;
+            
+            if (isMobile || isTablet) {
+                console.log('Mobile/Tablet detected - redirecting to mobile app');
+                window.location.href = currentUrl + '/?app=mobile_beach_app';
+            } else {
+                console.log('Desktop detected - redirecting to desktop app');
+                window.location.href = currentUrl + '/?app=flag';
+            }
         }
+        
+        // Auto-redirect after 2 seconds
+        setTimeout(detectAndRedirect, 2000);
+    } else {
+        console.log('App already loaded, skipping redirect');
     }
-    
-    // Auto-redirect after 2 seconds
-    setTimeout(detectAndRedirect, 2000);
     </script>
     
     <style>
