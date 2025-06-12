@@ -864,7 +864,7 @@ def main():
         # Add spacing to align button with input field
         st.markdown("<div style='margin-top: 2.4rem;'></div>", unsafe_allow_html=True)
         search_button = st.button("🔍 Search", use_container_width=True)
-   # ───────────────────────────── Filter Logic ─────────────────────────────────
+# ───────────────────────────── Filter Logic ─────────────────────────────────
     if search_query and (search_button or search_query):  # Trigger on button click or typing
         search_lower = search_query.lower()
         mask = df['Search_Text'].str.contains(search_lower, case=False, na=False)
@@ -901,54 +901,55 @@ def main():
             
             # Option 2: Or simply comment out the messages entirely
             # display_df = valid_coords_df.head(0)
-else:
-    display_df = valid_coords_df
-    st.markdown(f"""
-    <div style="background: rgba(255, 255, 255, 0.0); padding:10px; border-radius:8px; margin-bottom:10px;">
-        <span style="font-family: 'Arial', sans-serif; font-weight: bold; font-size: 18px; color: rgba(0, 102, 204, 0.0);">📍 Showing all {len(display_df)} beaches with coordinates on the map</span>
-    </div>
-    """, unsafe_allow_html=True)
-# ─────────────────────────────── Map Section ─────────────────────────────────
-if len(display_df) > 0:
-    # Display weather data info
-    st.markdown("""
-    <div style="background: rgba(255, 255, 255, 0.85); padding:10px; border-radius:8px; margin-bottom:10px;">
-        <strong style="font-family: 'Arial', sans-serif; font-size: 18px; color: #0066cc;">🌊 Sea Data:</strong> 
-        <span style="font-family: 'Arial', sans-serif; font-weight: bold; font-size: 18px; color: #0066cc;">
-        Click on any marker to see current sea conditions including sea temperature, wave conditions, sea debth 5m from the shore, wind speed/direction and much more. Regular data updates.
-        </span>
-    </div>
-    """, unsafe_allow_html=True)
-  
-    with st.spinner("🗺️ Loading beach map with pre-loaded depth data..."):
-        # Create map directly instead of caching HTML
-        beach_map = create_beach_map(display_df)
-        
-        # Display using st_folium
-        st_folium(beach_map, width=None, height=650)
-           
-    # Inject CSS to remove the white box after map renders
-    st.markdown("""
-<style>
-    /* Target the white info box specifically */
-    div[style*="background: rgba(255, 255, 255, 0.65); padding:10px; border-radius:8px; margin-bottom:10px;"] {
-        color: #0066cc !important;
-        font-family: 'Arial', sans-serif !important;
-    }
+    else:
+        display_df = valid_coords_df
+        st.markdown(f"""
+        <div style="background: rgba(255, 255, 255, 0.0); padding:10px; border-radius:8px; margin-bottom:10px;">
+            <span style="font-family: 'Arial', sans-serif; font-weight: bold; font-size: 18px; color: rgba(0, 102, 204, 0.0);">📍 Showing all {len(display_df)} beaches with coordinates on the map</span>
+        </div>
+        """, unsafe_allow_html=True)
     
-    /* Make sure all text inside is blue */
-    div[style*="background: rgba(255, 255, 255, 0.65);"] * {
-        color: #0066cc !important;
-        -webkit-text-stroke: 0 !important;
-    }
-    
-    /* Keep the white background but make text blue */
-    div[style*="background: rgba(255, 255, 255, 0.65);"] {
-        background: rgba(255, 255, 255, 0.65) !important;
-    }
-</style>
-""", unsafe_allow_html=True)
-     
+    # ─────────────────────────────── Map Section ─────────────────────────────────
+    if len(display_df) > 0:
+        # Display weather data info
+        st.markdown("""
+        <div style="background: rgba(255, 255, 255, 0.85); padding:10px; border-radius:8px; margin-bottom:10px;">
+            <strong style="font-family: 'Arial', sans-serif; font-size: 18px; color: #0066cc;">🌊 Sea Data:</strong> 
+            <span style="font-family: 'Arial', sans-serif; font-weight: bold; font-size: 18px; color: #0066cc;">
+            Click on any marker to see current sea conditions including sea temperature, wave conditions, sea debth 5m from the shore, wind speed/direction and much more. Regular data updates.
+            </span>
+        </div>
+        """, unsafe_allow_html=True)
+      
+        with st.spinner("🗺️ Loading beach map with pre-loaded depth data..."):
+            # Create map directly instead of caching HTML
+            beach_map = create_beach_map(display_df)
+            
+            # Display using st_folium
+            st_folium(beach_map, width=None, height=650)
+               
+        # Inject CSS to remove the white box after map renders
+        st.markdown("""
+        <style>
+            /* Target the white info box specifically */
+            div[style*="background: rgba(255, 255, 255, 0.65); padding:10px; border-radius:8px; margin-bottom:10px;"] {
+                color: #0066cc !important;
+                font-family: 'Arial', sans-serif !important;
+            }
+            
+            /* Make sure all text inside is blue */
+            div[style*="background: rgba(255, 255, 255, 0.65);"] * {
+                color: #0066cc !important;
+                -webkit-text-stroke: 0 !important;
+            }
+            
+            /* Keep the white background but make text blue */
+            div[style*="background: rgba(255, 255, 255, 0.65);"] {
+                background: rgba(255, 255, 255, 0.65) !important;
+            }
+        </style>
+        """, unsafe_allow_html=True)
+         
     else:
         st.warning("🔍 No beaches found matching your search or no coordinates available")
 
