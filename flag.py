@@ -54,7 +54,7 @@ def load_depth_database():
 
 # Load depth database at startup
 
-def get_depth_html_for_beach(lat, lon):
+def get_depth_html_for_beach(lat, lon, depth_database=None, depth_available=False):
     """Get pre-generated depth HTML for a beach location"""
     if not DEPTH_AVAILABLE:
         return """
