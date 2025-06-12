@@ -517,7 +517,7 @@ def create_beach_map(df):
             """
         
         # Get pre-generated depth information (fast lookup)
-        depth_html = get_depth_html_for_beach(lat, lon, depth_database, depth_available)
+        depth_html = get_depth_html_for_beach(lat, lon)
         
         # Enhanced popup with depth information
         popup_content = f"""
@@ -978,5 +978,4 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-if __name__ == "__main__":
-    main()
+
