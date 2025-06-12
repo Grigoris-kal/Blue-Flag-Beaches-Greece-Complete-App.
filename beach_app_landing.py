@@ -8,31 +8,39 @@ import streamlit as st
 import streamlit.components.v1 as components
 import base64
 
-# Simple landing page with JavaScript redirect only
+# Check what app is being requested and set appropriate layout
+query_params = st.query_params
+app = query_params.get('app')
+
+if app == 'flag':
+    layout = "wide"     # Desktop needs wide layout for map
+elif app == 'mobile_beach_app':
+    layout = "centered" # Mobile works better with centered
+else:
+    layout = "centered" # Landing page default
+
+# Set page config based on destination
 st.set_page_config(
     page_title="🏖️ Blue Flag Beaches Greece",
     page_icon="blue_flag_imagei.ico",
-    layout="centered"
+    layout=layout
 )
 
 def main():
     """Clean landing page with JavaScript redirect and routing"""
     
-    # Check if we need to route to a specific app
-    query_params = st.query_params
-    app = query_params.get('app')
-    
     if app == 'flag':
-        # Let desktop app handle its own page config and styling
+        # Let desktop app handle its own thing
         from flag import main as desktop_main
         desktop_main()
         return
     elif app == 'mobile_beach_app':
-        # Let mobile app handle its own page config and styling  
+        # Let mobile app handle its own thing
         from mobile_beach_app import main as mobile_main
         mobile_main()
         return
-    
+       
+    # (device detection, redirect script, etc.)    
     # Function to encode image to base64
     def get_base64_of_image(path):
         try:
