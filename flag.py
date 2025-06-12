@@ -563,7 +563,6 @@ def build_map_html(df_json, jawg_token):
 
 
 def main():
-    DEPTH_DATABASE, DEPTH_AVAILABLE = load_depth_database()
     # Function to encode image to base64
     def get_base64_of_image(path):
         with open(path, "rb") as img_file:
@@ -849,9 +848,6 @@ def main():
     df["Longitude"] = pd.to_numeric(df["Longitude"], errors="coerce")
     valid_coords_df = df.dropna(subset=["Latitude", "Longitude"]).copy()
 
-   
-    
-    # ───────────────────────────── Search Input ─────────────────────────────────
     # ───────────────────────────── Search Input ─────────────────────────────────
     col1, col2 = st.columns([3, 1])
     with col1:
@@ -864,7 +860,8 @@ def main():
         # Add spacing to align button with input field
         st.markdown("<div style='margin-top: 2.4rem;'></div>", unsafe_allow_html=True)
         search_button = st.button("🔍 Search", use_container_width=True)
-# ───────────────────────────── Filter Logic ─────────────────────────────────
+
+    # ───────────────────────────── Filter Logic ─────────────────────────────────
     if search_query and (search_button or search_query):  # Trigger on button click or typing
         search_lower = search_query.lower()
         mask = df['Search_Text'].str.contains(search_lower, case=False, na=False)
@@ -898,9 +895,6 @@ def main():
             st.warning(f"No beaches found matching '{search_query}'")
             st.info("💡 Try popular beaches: Ammoudara, Faliraki, Myrtos, Elounda, Posidi")
             display_df = valid_coords_df.head(0)
-            
-            # Option 2: Or simply comment out the messages entirely
-            # display_df = valid_coords_df.head(0)
     else:
         display_df = valid_coords_df
         st.markdown(f"""
@@ -923,7 +917,7 @@ def main():
       
         with st.spinner("🗺️ Loading beach map with pre-loaded depth data..."):
             # Create map directly instead of caching HTML
-            beach_map = create_beach_map(display_df, depth_database, depth_available)
+            beach_map = create_beach_map(display_df)
             
             # Display using st_folium
             st_folium(beach_map, width=None, height=650)
@@ -957,8 +951,8 @@ def main():
     st.markdown("---")
     
     # Enhanced footer with depth database info
-    if depth_available and depth_database:
-        metadata = depth_database.get('metadata', {})
+    if DEPTH_AVAILABLE and DEPTH_DATABASE:
+        metadata = DEPTH_DATABASE.get('metadata', {})
         depth_info = f"🏊 **Depth Data:** {metadata.get('total_beaches', 0)} beaches in database ({metadata.get('coverage_stats', {}).get('total_coverage_percent', 0)}% coverage)"
     else:
         depth_info = "🏊 **Depth Data:** Not available (run depth_data_generator.py)"
@@ -978,4 +972,5 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-
+if __name__ == "__main__":
+    main()
