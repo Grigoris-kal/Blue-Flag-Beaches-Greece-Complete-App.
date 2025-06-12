@@ -70,7 +70,7 @@ def get_depth_html_for_beach(lat, lon, depth_database=None, depth_available=Fals
     
     # Try to find exact match first
     if beach_key in depth_database.get('beaches', {}):
-        depth_info = DEPTH_DATABASE['beaches'][beach_key]['depth_info']
+        depth_info = depth_database['beaches'][beach_key]['depth_info']
     else:
         # Try to find nearby beach (within 0.001 degrees ~ 100m)
         found_beach = None
@@ -950,8 +950,8 @@ def main():
     st.markdown("---")
     
     # Enhanced footer with depth database info
-    if DEPTH_AVAILABLE and DEPTH_DATABASE:
-        metadata = DEPTH_DATABASE.get('metadata', {})
+    if depth_available and depth_database:
+        metadata = depth_database.get('metadata', {})
         depth_info = f"🏊 **Depth Data:** {metadata.get('total_beaches', 0)} beaches in database ({metadata.get('coverage_stats', {}).get('total_coverage_percent', 0)}% coverage)"
     else:
         depth_info = "🏊 **Depth Data:** Not available (run depth_data_generator.py)"
