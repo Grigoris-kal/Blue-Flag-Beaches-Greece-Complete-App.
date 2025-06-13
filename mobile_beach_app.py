@@ -21,13 +21,11 @@ BASE_URL = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Gre
 
 
 RESOURCES = {
-    "beach_data": BASE_URL + "blueflag_greece_scraped.csv",
-    "weather_cache": BASE_URL + "weather_cache.json", 
-    "flag_image": BASE_URL + "blue_flag_image.png",
-    "background_image": BASE_URL + "voidokoilia_edited.jpg",
-    "depth_database": BASE_URL + "beach_depth_database.json"
+    "beach_data": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App./refs/heads/main/blueflag_greece_scraped.csv",
+    "weather_cache": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App./refs/heads/main/weather_cache.json",
+    "background_image": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App./refs/heads/main/voidokoilia_edited.jpg",
+    "flag_image": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App./refs/heads/main/blue_flag_image.png"
 }
-
 
 # ======================
 # PAGE CONFIG
