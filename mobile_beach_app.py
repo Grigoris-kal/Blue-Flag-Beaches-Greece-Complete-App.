@@ -268,9 +268,9 @@ def main():
         if weather_cache is None:
             weather_cache = {}
 
-    # Search functionality with button layout
+    # Search functionality with button layout - wider elements
     st.markdown('<div class="search-container">', unsafe_allow_html=True)
-    col1, col2 = st.columns([7, 3])  # 70% for text input, 30% for button
+    col1, col2 = st.columns([8, 2])  # 80% for text input, 20% for button - wider overall
     
     with col1:
         search = st.text_input("🔍 Search beaches", placeholder="Type beach name...", label_visibility="collapsed")
@@ -323,8 +323,8 @@ def main():
         overflow: hidden !important;
     }
     
-    /* Also hide any success messages */
-    .stAlert {
+    /* Hide regular success/info messages but allow custom ones */
+    .stAlert:not(.custom-message) {
         background-color: rgba(0, 0, 0, 0) !important;
         color: rgba(0, 0, 0, 0) !important;
         border: none !important;
@@ -408,17 +408,30 @@ def main():
                 z-index: 10 !important;
             }
             
-            /* Make search elements even larger */
+            /* Make search elements even larger and fix button alignment */
             .stTextInput > div > div > input {
                 font-size: 20px !important;  /* Larger font */
                 padding: 15px !important;    /* More padding */
                 height: 55px !important;     /* Taller input */
+                width: 100% !important;      /* Full width of column */
             }
             
             .stButton > button {
                 font-size: 20px !important;  /* Larger font */
                 padding: 15px 25px !important; /* More padding */
-                height: 55px !important;     /* Taller button */
+                height: 55px !important;     /* Same height as input */
+                margin-top: 0px !important;  /* Align with input */
+                width: 100% !important;      /* Full width of column */
+            }
+            
+            /* Fix button container alignment on desktop */
+            .search-container .stButton {
+                margin-top: -8px !important;  /* Move button up to align with text input */
+            }
+            
+            /* Ensure search container uses full available width */
+            .search-container > div {
+                width: 100% !important;
             }
         }
         </style>
@@ -430,7 +443,21 @@ def main():
         st.markdown("<br>", unsafe_allow_html=True)
         st.success(f"Showing {len(df)} beaches")
     else:
-        st.markdown('<div class="custom-warning">Oooops, we don\'t know that beach. At least you have a great view 😊</div>', unsafe_allow_html=True)
+        # Show the funny message in a dark blue box for visibility
+        st.markdown("""
+        <div style="
+            background-color: #0053ac; 
+            color: white; 
+            padding: 20px; 
+            border-radius: 10px; 
+            text-align: center; 
+            font-size: 18px; 
+            margin: 20px 0;
+            font-weight: bold;
+        ">
+            Oooops, we don't know that beach. At least you have a great view 😊
+        </div>
+        """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
