@@ -432,14 +432,21 @@ def get_wave_conditions(wave_height, wave_period):
 def load_weather_cache():
     """Load pre-fetched weather data from cache file"""
     try:
-       github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/weather_cache.json"
-       response = requests.get(github_url)
+        # First try to load from GitHub
+        github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/weather_cache.json"
+        response = requests.get(github_url)
         
+        if response.status_code == 200:
+            return response.json()
+        
+        # Fallback to local cache if GitHub fails
+        cache_path = "weather_cache.json"
         if os.path.exists(cache_path):
             with open(cache_path, 'r', encoding='utf-8') as f:
                 return json.load(f)
         else:
             return {}
+            
     except Exception as e:
         print(f"Error loading weather cache: {e}")
         return {}
@@ -457,6 +464,7 @@ def find_weather_for_beach(lat, lon, weather_cache):
     if full_precision_key in weather_cache:
         return weather_cache[full_precision_key]
     
+        
     # Try finding nearby coordinates (within 0.001 degrees ~ 100m)
     for cache_key, weather_data in weather_cache.items():
         if '_' not in cache_key:
