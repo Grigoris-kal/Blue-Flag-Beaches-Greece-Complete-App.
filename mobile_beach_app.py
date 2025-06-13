@@ -162,10 +162,14 @@ def create_mobile_map(df, weather_cache):
         ),
         layers=[layer],
         tooltip={
-            "html": "<b>{name}</b><br/>{municipality}<br/>{tooltip}",
+            "html": "<b>{name}</b><br/><i>{municipality}</i><br/><div style='white-space: pre-line;'>{tooltip}</div>",
             "style": {
                 "backgroundColor": "rgba(0, 83, 156, 0.95)",
-                "color": "white"
+                "color": "white",
+                "fontSize": "12px",
+                "padding": "8px",
+                "borderRadius": "4px",
+                "maxWidth": "250px"
             }
         }
     )
