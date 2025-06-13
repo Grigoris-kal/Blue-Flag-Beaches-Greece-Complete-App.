@@ -23,7 +23,7 @@ COPERNICUS_PASSWORD = os.getenv('COPERNICUS_PASSWORD')
 
 st.set_page_config(
     page_title="Blue Flag Beaches of Greece",
-    page_icon="🏖️",
+    page_icon="🌊",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -32,7 +32,7 @@ st.set_page_config(
 # 2) Load pre-generated depth database
 # ─────────────────────────────────────────────────────────────────────────────
 
-@st.cache_data(persist=True)
+@st.cache_data(ttl=3600)
 def load_depth_database():
     """Load pre-generated depth database from JSON file"""
     depth_files = [
@@ -139,29 +139,24 @@ def get_base64_image(image_path):
 
 @st.cache_data
 def load_beach_background():
-    """Load and cache the beach background image from GitHub repository."""
-    try:
-        # Try edited version first
-        github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/voidokoilia_edited.jpg"
-        response = requests.get(github_url)
-        if response.status_code == 200:
-            import base64
-            base64_img = base64.b64encode(response.content).decode()
-            return f"data:image/jpeg;base64,{base64_img}"
-        
-        # Try original version
-        github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/voidokoilia.jpg"
-        response = requests.get(github_url)
-        if response.status_code == 200:
-            import base64
-            base64_img = base64.b64encode(response.content).decode()
-            return f"data:image/jpeg;base64,{base64_img}"
-        
-        # Fallback remote URL
-        return "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&q=80"
-    except Exception as e:
-        print(f"Error loading background from GitHub: {e}")
-        return "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&q=80"
+    """Load and cache the beach background image (edited first, then original)."""
+    possible_paths = [
+        "voidokoilia_edited.jpg",
+        "./voidokoilia_edited.jpg",
+        os.path.join(os.path.dirname(__file__), "voidokoilia_edited.jpg"),
+        os.path.join(os.getcwd(), "voidokoilia_edited.jpg"),
+        "voidokoilia.jpg",
+        "./voidokoilia.jpg",
+        os.path.join(os.path.dirname(__file__), "voidokoilia.jpg"),
+        os.path.join(os.getcwd(), "voidokoilia.jpg")
+    ]
+    for path in possible_paths:
+        if os.path.exists(path):
+            base64_img = get_base64_image(path)
+            if base64_img:
+                return f"data:image/jpeg;base64,{base64_img}"
+    # Fallback remote URL
+    return "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&q=80"
 
 def create_transliteration_mapping():
     greek_to_latin = {
@@ -411,7 +406,7 @@ def get_wave_conditions(wave_height, wave_period):
     except:
         return 'N/A'
 
-@st.cache_data(ttl=1800)  # Cache for 30 minutes
+@st.cache_data(ttl=300)  # Cache for 5 minutes
 def load_weather_cache():
     """Load pre-fetched weather data from cache file"""
     try:
@@ -571,14 +566,9 @@ def main():
         with open(path, "rb") as img_file:
             return base64.b64encode(img_file.read()).decode()
 
-    # Get base64 string of your Blue Flag image from GitHub
+    # Get base64 string of your Blue Flag image
     try:
-        github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/blue_flag_image.png"
-        response = requests.get(github_url)
-        if response.status_code == 200:
-            img_base64 = base64.b64encode(response.content).decode()
-        else:
-            img_base64 = ""
+        img_base64 = get_base64_of_image("blue_flag_image.png")
     except:
         img_base64 = ""
     
@@ -809,8 +799,14 @@ def main():
                        font-family: 'Arial', sans-serif;
                        font-size: 36px;
                        font-weight: bold;">
-                <img src="data:image/png;base64,{img_base64}" style="height: 50px; margin-right: 15px; filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.5));"> 
-                Blue Flag Beaches Greece
+                <img src="data:image/png;base64,{img_base64}" style="height: 50px; 
+                                                            margin-right: 15px; 
+                                                            padding: 8px; 
+                                                            background-color: white; 
+                                                            border-radius: 8px; 
+                                                            border: 2px solid #ccc;
+                                                            filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.5));"> 
+        Blue Flag Beaches Greece
             </h1>
         </div>
         """
@@ -924,12 +920,15 @@ def main():
       
 
         with st.spinner("🗺️ Loading beach map with pre-loaded depth data..."):
-            # Create map directly like mobile app
-            beach_map = create_beach_map(display_df)
+            # Convert DataFrame to JSON for caching
+            df_json = display_df.to_json(date_format="iso")
+            
+            # Get cached HTML
+            map_html = build_map_html(df_json, JAWG_TOKEN)
             
             # Display using components
             st.components.v1.html(
-                beach_map._repr_html_(),
+                map_html,
                 height=650,
                 scrolling=False
             )
