@@ -271,11 +271,11 @@ def main():
         search = st.text_input("🔍 Search beaches", placeholder="Type beach name...", label_visibility="collapsed")
     
     with col2:
-        # Add some spacing to align button with text input
-        st.markdown("<br>", unsafe_allow_html=True)
+        # Reduce spacing to move button closer to text input
+        st.markdown("<div style='margin-top: -8px;'></div>", unsafe_allow_html=True)
         search_button = st.button("🔍 Search", use_container_width=True)
     
-    # Add custom CSS for white background on search input
+    # Add custom CSS for white background on search input and other styling
     st.markdown("""
     <style>
     /* White background for search input */
@@ -286,17 +286,58 @@ def main():
         color: black !important;
     }
     
-    /* Style the search button */
+    /* Darker placeholder text */
+    .stTextInput > div > div > input::placeholder {
+        color: #555555 !important;
+        opacity: 1 !important;
+    }
+    
+    /* Style the search button with Greek flag inspired stripes */
     .stButton > button {
-        background-color: #0053ac !important;
+        background: linear-gradient(45deg, #0053ac 25%, white 25%, white 50%, #0053ac 50%, #0053ac 75%, white 75%, white) !important;
+        background-size: 20px 20px !important;
         color: white !important;
-        border: none !important;
+        border: 2px solid #0053ac !important;
         border-radius: 8px !important;
         font-weight: bold !important;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.5) !important;
     }
     
     .stButton > button:hover {
-        background-color: #0077c8 !important;
+        background: linear-gradient(45deg, #0077c8 25%, white 25%, white 50%, #0077c8 50%, #0077c8 75%, white 75%, white) !important;
+        background-size: 20px 20px !important;
+    }
+    
+    /* Custom warning message styling */
+    .custom-warning {
+        background-color: rgba(255, 255, 255, 0.9);
+        padding: 15px;
+        border-radius: 10px;
+        text-align: center;
+        font-size: 18px;
+        margin: 10px 0;
+        border: 2px solid #0053ac;
+    }
+    
+    /* Desktop styling */
+    @media (min-width: 768px) {
+        .custom-warning {
+            font-size: 72px;  /* 400% larger */
+            padding: 30px;
+        }
+        
+        /* Make search columns closer */
+        .stTextInput {
+            margin-bottom: -10px;
+        }
+    }
+    
+    /* Mobile styling */
+    @media (max-width: 767px) {
+        .custom-warning {
+            font-size: 27px;  /* 50% larger */
+            padding: 20px;
+        }
     }
     </style>
     """, unsafe_allow_html=True)
@@ -313,6 +354,8 @@ def main():
         @media (min-width: 768px) {
             .stDeckGlJsonChart > div {
                 height: 70vh !important;
+                width: 160% !important;  /* 60% wider */
+                margin-left: -30% !important;  /* Center the wider map */
             }
             /* Make tooltips much larger on desktop/laptop */
             .deck-tooltip {
@@ -331,7 +374,7 @@ def main():
         st.markdown("<br>", unsafe_allow_html=True)
         st.success(f"Showing {len(df)} beaches")
     else:
-        st.warning("Oooops, we don't know that beach. At least you have a great view 😊")
+        st.markdown('<div class="custom-warning">Oooops, we don\'t know that beach. At least you have a great view 😊</div>', unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
