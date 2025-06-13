@@ -131,8 +131,8 @@ def create_mobile_map(df, weather_cache):
         map_data.append({
             'lat': row['Latitude'],
             'lon': row['Longitude'],
-            'name': row['Name_English'],
-            'municipality': row.get('Municipality_English', ''),
+            'name': transliterate_greek_to_latin(row['Name']),  # Convert Greek to Latin
+            'municipality': transliterate_greek_to_latin(row.get('Municipality', '')),  # Convert Greek to Latin
             'tooltip': tooltip_text,
             'color': [0, 100, 200, 200],
             'icon': {
@@ -218,8 +218,7 @@ def main():
     # Search functionality
     search = st.text_input("🔍 Search beaches", placeholder="Type beach name...")
     if search and not df.empty:
-        mask = (df['Name'].str.contains(search, case=False, na=False) | 
-               df['Name_English'].str.contains(search, case=False, na=False))
+        mask = (df['Name'].str.contains(search, case=False, na=False))
         df = df[mask]
 
     # Display results
