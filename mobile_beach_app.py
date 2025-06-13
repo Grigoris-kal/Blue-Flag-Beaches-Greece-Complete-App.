@@ -18,28 +18,6 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-
-st.markdown("""
-<style>
-/* Mobile styles (default) */
-.main-container { width: 100%; }
-.map-container { height: 400px; }
-
-/* Desktop styles */
-@media (min-width: 768px) {
-    .main-container { max-width: 1200px; margin: 0 auto; }
-    .map-container { height: 600px; }
-    .sidebar { display: block; }
-}
-
-/* Large desktop */
-@media (min-width: 1200px) {
-    .map-container { height: 800px; }
-}
-</style>
-""", unsafe_allow_html=True)
-
-
 @st.cache_data
 def transliterate_greek_to_latin(text):
     """Convert Greek text to Latin characters"""
@@ -73,6 +51,29 @@ def transliterate_greek_to_latin(text):
         'Ω': 'O', 'ω': 'o', 'Ώ': 'O', 'ώ': 'o'
     }
     return ''.join([greek_to_latin.get(char, char) for char in str(text)])
+
+st.markdown("""
+<style>
+/* Mobile styles (default) */
+.main-container { width: 100%; }
+.map-container { height: 400px; }
+
+/* Desktop styles */
+@media (min-width: 768px) {
+    .main-container { max-width: 1200px; margin: 0 auto; }
+    .map-container { height: 600px; }
+    .sidebar { display: block; }
+}
+
+/* Large desktop */
+@media (min-width: 1200px) {
+    .map-container { height: 800px; }
+}
+</style>
+""", unsafe_allow_html=True)
+
+
+
 
 def load_beach_data():
     """Load beach data from GitHub"""
