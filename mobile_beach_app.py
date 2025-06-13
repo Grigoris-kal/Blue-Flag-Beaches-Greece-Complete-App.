@@ -135,7 +135,7 @@ def create_mobile_map(df, weather_cache):
     """Create mobile-optimized PyDeck map"""
     
     # Load depth database
-   try:
+    try:
         github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/beach_depth_database.json"
         response = requests.get(github_url)
         if response.status_code == 200:
