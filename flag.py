@@ -162,7 +162,7 @@ def load_beach_background():
     except Exception as e:
         print(f"Error loading background from GitHub: {e}")
         return "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&q=80"
-    ]
+    
     for path in possible_paths:
         if os.path.exists(path):
             base64_img = get_base64_image(path)
