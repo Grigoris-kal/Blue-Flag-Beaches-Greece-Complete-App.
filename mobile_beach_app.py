@@ -20,12 +20,13 @@ from io import StringIO
 BASE_URL = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/"
 
 RESOURCES = {
-    "beach_data": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/blueflag_greece_scraped.csv",
-    "weather_cache": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/weather_cache.json",
-    "depth_data": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/beach_depth_database.json",
-    "flag_image": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/blue_flag_image.png",
-    "background_image": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/voidokoilia_edited.jpg"
+    "beach_data": f"{BASE_URL}blueflag_greece_scraped.csv",
+    "weather_cache": f"{BASE_URL}weather_cache.json",
+    "depth_data": f"{BASE_URL}beach_depth_database.json",
+    "flag_image": f"{BASE_URL}blue_flag_image.png",
+    "background_image": f"{BASE_URL}voidokoilia_edited.jpg"
 }
+
 # ======================
 # PAGE CONFIG
 # ======================
