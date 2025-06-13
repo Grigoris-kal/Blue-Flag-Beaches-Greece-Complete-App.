@@ -159,9 +159,9 @@ def create_mobile_map(df, weather_cache):
     return pdk.Deck(
         map_style='mapbox://styles/mapbox/outdoors-v11',
         initial_view_state=pdk.ViewState(
-            latitude=39.0742,
-            longitude=21.8243,
-            zoom=6,
+            latitude=39.0742,   # Center of Greece
+            longitude=21.8243,  # Center of Greece  
+            zoom=5.2,           # Perfect zoom to see all of Greece + islands
             pitch=0
         ),
         layers=[layer],
@@ -216,17 +216,21 @@ def main():
         @media (min-width: 768px) {{
             .beach-header {{
                 padding: 25px;
+                width: 140% !important;  /* 40% wider than normal */
+                margin-left: -20% !important;  /* Center the wider header */
+                transform: none !important;  /* Ensure no interference */
             }}
             .beach-header h1 {{
-                font-size: 36px;
+                font-size: 43px;  /* 20% larger than 36px */
             }}
             .beach-header img {{
-                height: 80px; 
+                height: 96px;   /* 20% larger than 80px */
                 margin-right: 20px;
                 background: white;
                 padding: 10px;
                 border-radius: 12px;
             }}
+        }}
         }}
         </style>
         <div class="beach-header">
@@ -352,31 +356,57 @@ def main():
         <style>
         /* Make map larger on desktop/laptop */
         @media (min-width: 768px) {
-            .stDeckGlJsonChart > div {
-                height: 70vh !important;
-                width: 120% !important;  /* 20% wider */
-                margin-left: -10% !important;  /* Center the wider map */
+            /* Override Streamlit's container width restrictions */
+            .main .block-container {
+                max-width: none !important;
+                padding-left: 1rem !important;
+                padding-right: 1rem !important;
+                padding-top: 1rem !important;
+                padding-bottom: 4rem !important;
             }
+            
+            /* Make map 40% wider */
+            .stDeckGlJsonChart {
+                width: 140% !important;
+                margin-left: -20% !important;
+                position: relative !important;
+            }
+            
+            .stDeckGlJsonChart > div {
+                height: 60vh !important;  /* Shorter for better scrolling */
+                width: 100% !important;
+                margin-bottom: 3rem !important; /* More space below map */
+            }
+            
             /* Make tooltips much larger on desktop/laptop */
             .deck-tooltip {
-                font-size: 24px !important;  /* 100% bigger (double) */
-                padding: 16px !important;    /* 100% bigger padding */
-                max-width: 500px !important; /* 100% bigger width */
+                font-size: 24px !important;
+                padding: 16px !important;
+                max-width: 500px !important;
                 border-radius: 8px !important;
             }
-            /* Make page more scrollable with equal spacing */
-            .main .block-container {
-                padding-top: 3rem !important;
-                padding-bottom: 6rem !important;  /* More space at bottom */
-            }
-            /* Make header and search bar as wide as map */
-            .beach-header {
-                width: 120% !important;
-                margin-left: -10% !important;
-            }
+            
+            /* Make search container wider and move higher */
             .search-container {
-                width: 120% !important;
-                margin-left: -10% !important;
+                width: 140% !important;  /* Match map width */
+                margin-left: -20% !important;  /* Center with map */
+                margin-top: -25% !important;  /* Move 25% higher */
+                margin-bottom: 2rem !important;
+                position: relative !important;
+                z-index: 10 !important;
+            }
+            
+            /* Make search elements larger */
+            .stTextInput > div > div > input {
+                font-size: 18px !important;
+                padding: 12px !important;
+                height: 50px !important;
+            }
+            
+            .stButton > button {
+                font-size: 18px !important;
+                padding: 12px 20px !important;
+                height: 50px !important;
             }
         }
         </style>
