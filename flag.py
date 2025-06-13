@@ -34,20 +34,27 @@ st.set_page_config(
 
 @st.cache_data(persist=True)
 def load_depth_database():
-    """Load pre-generated depth database from GitHub repository - ONCE ONLY"""
-    try:
-        github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/beach_depth_database.json"
-        response = requests.get(github_url)
-        if response.status_code == 200:
-            database = response.json()
-            print("✅ Loaded depth database from GitHub")
-            return database, True
-        else:
-            print("⚠️ Could not load depth database from GitHub")
-            return {}, False
-    except Exception as e:
-        print(f"❌ Error loading depth database from GitHub: {e}")
-        return {}, False
+    """Load pre-generated depth database from JSON file"""
+    depth_files = [
+        "beach_depth_database.json",
+        "./beach_depth_database.json",
+        os.path.join(os.path.dirname(__file__), "beach_depth_database.json"),
+        os.path.join(os.getcwd(), "beach_depth_database.json")
+    ]
+    
+    for filepath in depth_files:
+        if os.path.exists(filepath):
+            try:
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    database = json.load(f)
+                print(f"✅ Loaded depth database from: {filepath}")
+                return database, True
+            except Exception as e:
+                print(f"❌ Error loading depth database from {filepath}: {e}")
+                continue
+    
+    print("⚠️ No depth database found. Run depth_data_generator.py first!")
+    return {}, False
 
 # Load depth database at startup
 DEPTH_DATABASE, DEPTH_AVAILABLE = load_depth_database()
@@ -275,19 +282,17 @@ def create_searchable_columns(df):
 
 @st.cache_data(ttl=3600)
 def load_cached_data():
-    """Load beach data from GitHub repository"""
-    try:
-        github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/blueflag_greece_scraped.csv"
-        response = requests.get(github_url)
-        if response.status_code == 200:
-            from io import StringIO
-            df = pd.read_csv(StringIO(response.text))
-            return create_searchable_columns(df), "scraped"
-        else:
-            return create_searchable_columns(create_sample_data()), "created_sample"
-    except Exception as e:
-        print(f"Error loading CSV from GitHub: {e}")
-        return create_searchable_columns(create_sample_data()), "created_sample"
+    save_dir = os.path.join(os.path.expanduser("~"), "MyAPIs", "Blue_Flags_Greece_API", "flag_backend")
+    files_to_try = [
+        ("blueflag_greece_scraped.csv", "scraped"),
+        ("blueflag_greece_sample.csv", "sample"),
+    ]
+    for filename, data_type in files_to_try:
+        filepath = os.path.join(save_dir, filename)
+        if os.path.exists(filepath):
+            df = pd.read_csv(filepath)
+            return create_searchable_columns(df), data_type
+    return create_searchable_columns(create_sample_data()), "created_sample"
 
 def create_sample_data():
     return pd.DataFrame([
@@ -408,12 +413,14 @@ def get_wave_conditions(wave_height, wave_period):
 
 @st.cache_data(ttl=1800)  # Cache for 30 minutes
 def load_weather_cache():
-    """Load pre-fetched weather data from GitHub repository"""
+    """Load pre-fetched weather data from cache file"""
     try:
-        github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/weather_cache.json"
-        response = requests.get(github_url)
-        if response.status_code == 200:
-            return response.json()
+        save_dir = os.path.join(os.path.expanduser("~"), "MyAPIs", "Blue_Flags_Greece_API", "flag_backend")
+        cache_path = os.path.join(save_dir, "weather_cache.json")
+        
+        if os.path.exists(cache_path):
+            with open(cache_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
         else:
             return {}
     except Exception as e:
@@ -917,15 +924,12 @@ def main():
       
 
         with st.spinner("🗺️ Loading beach map with pre-loaded depth data..."):
-            # Convert DataFrame to JSON for caching
-            df_json = display_df.to_json(date_format="iso")
-            
-            # Get cached HTML
-            map_html = build_map_html(df_json, JAWG_TOKEN)
+            # Create map directly like mobile app
+            beach_map = create_beach_map(display_df)
             
             # Display using components
             st.components.v1.html(
-                map_html,
+                beach_map._repr_html_(),
                 height=650,
                 scrolling=False
             )
