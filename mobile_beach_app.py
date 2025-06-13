@@ -161,7 +161,7 @@ def create_mobile_map(df, weather_cache):
         initial_view_state=pdk.ViewState(
             latitude=39.0742,   # Center of Greece
             longitude=21.8243,  # Center of Greece  
-            zoom=5.2,           # Perfect zoom to see all of Greece + islands
+            zoom=5.2,           # Perfect zoom to see all Greece + islands on mobile too
             pitch=0
         ),
         layers=[layer],
@@ -276,8 +276,8 @@ def main():
         search = st.text_input("🔍 Search beaches", placeholder="Type beach name...", label_visibility="collapsed")
     
     with col2:
-        # Reduce spacing to move button closer to text input
-        st.markdown("<div style='margin-top: -8px;'></div>", unsafe_allow_html=True)
+        # Move button higher to align with text input (no extra height)
+        st.markdown("<div style='margin-top: -32px;'></div>", unsafe_allow_html=True)
         search_button = st.button("🔍 Search", use_container_width=True)
     
     st.markdown('</div>', unsafe_allow_html=True)  # Close search-container
