@@ -186,15 +186,47 @@ def main():
     # Header with GitHub-hosted image
     if flag_img:
         st.markdown(f"""
-        <div style="background: linear-gradient(135deg, #0053ac 0%, #0077c8 100%); 
-                    padding: 15px; border-radius: 10px; margin-bottom: 15px; text-align: center;">
-            <h1 style="color: white; margin: 0; font-size: 24px; display: flex; align-items: center; justify-content: center;">
-                <img src="data:image/png;base64,{flag_img}" style="height: 60px; margin-right: 15px;">
+        <style>
+        /* Mobile styles (default) */
+        .beach-header {{
+            background: linear-gradient(135deg, #0053ac 0%, #0077c8 100%); 
+            padding: 15px; 
+            border-radius: 10px; 
+            margin-bottom: 15px; 
+            text-align: center;
+        }}
+        .beach-header h1 {{
+            color: white; 
+            margin: 0; 
+            font-size: 24px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+        }}
+        .beach-header img {{
+            height: 60px; 
+            margin-right: 15px;
+        }}
+        
+        /* Desktop/Laptop styles */
+        @media (min-width: 768px) {{
+            .beach-header {{
+                padding: 25px;
+            }}
+            .beach-header h1 {{
+                font-size: 36px;
+            }}
+            .beach-header img {{
+                height: 80px; 
+                margin-right: 20px;
+            }}
+        }}
+        </style>
+        <div class="beach-header">
+            <h1>
+                <img src="data:image/png;base64,{flag_img}">
                 Blue Flag Beaches Greece
             </h1>
-            <p style="color: white; margin: 5px 0 0 0; font-size: 14px;">
-                📱 Mobile Optimized Version
-            </p>
         </div>
         """, unsafe_allow_html=True)
     
@@ -231,6 +263,18 @@ def main():
 
     # Display results
     if not df.empty:
+        # Add responsive styling for the map
+        st.markdown("""
+        <style>
+        /* Make map larger on desktop/laptop */
+        @media (min-width: 768px) {
+            .stDeckGlJsonChart > div {
+                height: 70vh !important;
+            }
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        
         st.pydeck_chart(create_mobile_map(df, weather_cache), use_container_width=True)
         st.success(f"Showing {len(df)} beaches from GitHub data")
     else:
