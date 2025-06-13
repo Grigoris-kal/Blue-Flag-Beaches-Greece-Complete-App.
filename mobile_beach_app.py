@@ -78,8 +78,9 @@ st.markdown("""
 def load_beach_data():
     """Load beach data from GitHub"""
     try:
-        github_url = "github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/blueflag_greece_scraped.csv""
-        df = pd.read_csv(github_url)
+        github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/blueflag_greece_scraped.csv"
+        # Add error handling for malformed CSV lines
+        df = pd.read_csv(github_url, on_bad_lines='skip', encoding='utf-8')
         
         # Clean coordinates
         df["Latitude"] = pd.to_numeric(df["Latitude"], errors="coerce")
