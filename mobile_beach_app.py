@@ -327,13 +327,12 @@ def main():
             </p>
         </div>
         """, unsafe_allow_html=True)
-
     # Add same background as main app
     try:
-    github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/voidokoilia_edited.jpg"
-    response = requests.get(github_url)
-    if response.status_code == 200:
-        bg_data = base64.b64encode(response.content).decode()
+        github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/voidokoilia_edited.jpg"
+        response = requests.get(github_url)
+        if response.status_code == 200:
+            bg_data = base64.b64encode(response.content).decode()
             
             st.markdown(f"""
             <style>
