@@ -78,7 +78,7 @@ st.markdown("""
 def load_beach_data():
     """Load beach data from GitHub"""
     try:
-        github_url = "https://raw.githubusercontent.com/Grigoris-kal/blueflag_greece_scraped.csv-Complete-App./refs/heads/main/blueflag_greece_scraped.csv"
+        github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App./main/voidokoilia_edited.jpg"
         df = pd.read_csv(github_url)
         
         # Clean coordinates
