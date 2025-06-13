@@ -216,9 +216,9 @@ def main():
         @media (min-width: 768px) {{
             .beach-header {{
                 padding: 25px;
-                width: 140% !important;  /* 40% wider than normal */
-                margin-left: -20% !important;  /* Center the wider header */
-                transform: none !important;  /* Ensure no interference */
+                width: 160% !important;  /* 60% wider (40% more than current 140%) */
+                margin-left: -30% !important;  /* Center the wider header */
+                transform: none !important;
             }}
             .beach-header h1 {{
                 font-size: 43px;  /* 20% larger than 36px */
@@ -312,15 +312,26 @@ def main():
         background-color: #0077c8 !important;
     }
     
-    /* Custom warning message styling */
+    /* Custom warning message styling - make completely transparent */
     .custom-warning {
-        background-color: rgba(255, 255, 255, 0.9);
-        padding: 15px;
-        border-radius: 10px;
-        text-align: center;
-        font-size: 18px;
-        margin: 10px 0;
-        border: 2px solid #0053ac;
+        background-color: rgba(255, 255, 255, 0) !important;  /* Completely transparent */
+        color: rgba(0, 0, 0, 0) !important;  /* Invisible text */
+        padding: 0px !important;
+        border: none !important;
+        margin: 0px !important;
+        height: 0px !important;
+        overflow: hidden !important;
+    }
+    
+    /* Also hide any success messages */
+    .stAlert {
+        background-color: rgba(0, 0, 0, 0) !important;
+        color: rgba(0, 0, 0, 0) !important;
+        border: none !important;
+        padding: 0px !important;
+        margin: 0px !important;
+        height: 0px !important;
+        overflow: hidden !important;
     }
     
     /* Desktop styling */
@@ -365,17 +376,18 @@ def main():
                 padding-bottom: 4rem !important;
             }
             
-            /* Make map 40% wider */
+            /* Make map 60% wider and move up more */
             .stDeckGlJsonChart {
-                width: 140% !important;
-                margin-left: -20% !important;
+                width: 160% !important;  /* 60% wider (40% more than current) */
+                margin-left: -30% !important;  /* Center the wider map */
                 position: relative !important;
+                margin-top: -2rem !important;  /* Move map up more */
             }
             
             .stDeckGlJsonChart > div {
-                height: 60vh !important;  /* Shorter for better scrolling */
+                height: 55vh !important;  /* Even shorter for more space below */
                 width: 100% !important;
-                margin-bottom: 3rem !important; /* More space below map */
+                margin-bottom: 4rem !important; /* Even more space below map */
             }
             
             /* Make tooltips much larger on desktop/laptop */
@@ -388,25 +400,25 @@ def main():
             
             /* Make search container wider and move higher */
             .search-container {
-                width: 140% !important;  /* Match map width */
-                margin-left: -20% !important;  /* Center with map */
-                margin-top: -25% !important;  /* Move 25% higher */
+                width: 160% !important;  /* Match new map width */
+                margin-left: -30% !important;  /* Center with map */
+                margin-top: -50% !important;  /* Move 50% higher (25% more) */
                 margin-bottom: 2rem !important;
                 position: relative !important;
                 z-index: 10 !important;
             }
             
-            /* Make search elements larger */
+            /* Make search elements even larger */
             .stTextInput > div > div > input {
-                font-size: 18px !important;
-                padding: 12px !important;
-                height: 50px !important;
+                font-size: 20px !important;  /* Larger font */
+                padding: 15px !important;    /* More padding */
+                height: 55px !important;     /* Taller input */
             }
             
             .stButton > button {
-                font-size: 18px !important;
-                padding: 12px 20px !important;
-                height: 50px !important;
+                font-size: 20px !important;  /* Larger font */
+                padding: 15px 25px !important; /* More padding */
+                height: 55px !important;     /* Taller button */
             }
         }
         </style>
