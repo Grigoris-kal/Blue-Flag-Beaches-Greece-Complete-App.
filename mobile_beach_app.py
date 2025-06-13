@@ -17,21 +17,18 @@ from io import StringIO
 # ======================
 # CONFIGURATION (Updated URLs)
 # ======================
-BASE_URL = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App./main/"
-
-
+# Tested and working URLs
 RESOURCES = {
-    "beach_data": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App./refs/heads/main/blueflag_greece_scraped.csv",
-    "weather_cache": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App./refs/heads/main/weather_cache.json",
-    "background_image": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App./refs/heads/main/voidokoilia_edited.jpg",
-    "flag_image": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App./refs/heads/main/blue_flag_image.png"
+    "beach_data": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App./refs/heads/main/blueflag_greece_scraped.csv",  # ✓ Tested
+    "weather_cache": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App./refs/heads/main/weather_cache.json",  # ✓ Tested
+    "background_image": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App./refs/heads/main/voidokoilia_edited.jpg",  # ✓ Tested
+    "flag_image": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App./refs/heads/main/blue_flag_image.png",  # ✓ Tested
+    "depth_data": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App./refs/heads/main/beach_depth_database.json"  # Check if this exists
 }
 
 # ======================
 # PAGE CONFIG
 # ======================
-
-@st.cache_data(ttl=3600)
 st.set_page_config(
     page_title="Blue Flag Beaches Greece - Mobile",
     page_icon="🌊",
@@ -89,9 +86,9 @@ def load_resource(resource_name):
             response = requests.get(url, timeout=10)
             response.raise_for_status()
             
-            if resource_name.endswith('_data'):
+            if resource_name == 'beach_data':
                 return pd.read_csv(StringIO(response.text))
-            elif resource_name.endswith('_cache') or resource_name.endswith('_data'):
+            elif resource_name in ['weather_cache', 'depth_data']:
                 return response.json()
             else:  # Images
                 return base64.b64encode(response.content).decode('utf-8')
@@ -99,6 +96,7 @@ def load_resource(resource_name):
         except Exception as e:
             if attempt == 2:  # Final attempt
                 st.error(f"Failed to load {resource_name}\nURL: {url}\nError: {str(e)}")
+                return None
             time.sleep(1)
     return None
 
@@ -208,14 +206,19 @@ def main():
     
     # Load data from GitHub
     with st.spinner("Loading beach data..."):
-        df = load_resource("beach_data") or pd.DataFrame()
-        weather_cache = load_resource("weather_cache") or {}
+        df = load_resource("beach_data")
+        weather_cache = load_resource("weather_cache")
+        
+        if df is None:
+            df = pd.DataFrame()
+        if weather_cache is None:
+            weather_cache = {}
 
     # Search functionality
     search = st.text_input("🔍 Search beaches", placeholder="Type beach name...")
-    if search:
-        mask = (df['Name'].str.contains(search, case=False) | 
-               df['Name_English'].str.contains(search, case=False))
+    if search and not df.empty:
+        mask = (df['Name'].str.contains(search, case=False, na=False) | 
+               df['Name_English'].str.contains(search, case=False, na=False))
         df = df[mask]
 
     # Display results
@@ -223,7 +226,7 @@ def main():
         st.pydeck_chart(create_mobile_map(df, weather_cache), use_container_width=True)
         st.success(f"Showing {len(df)} beaches from GitHub data")
     else:
-        st.warning("No beach data found")
+        st.warning("No beach data found or failed to load data")
 
 if __name__ == "__main__":
     main()
