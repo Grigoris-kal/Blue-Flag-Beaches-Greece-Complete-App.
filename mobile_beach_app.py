@@ -11,6 +11,14 @@ import json
 import os
 import base64
 
+st.set_page_config(
+    page_title="Blue Flag Beaches Greece - Mobile",
+    page_icon="🌊",
+    layout="centered",
+    initial_sidebar_state="collapsed"
+)
+
+
 st.markdown("""
 <style>
 /* Mobile styles (default) */
