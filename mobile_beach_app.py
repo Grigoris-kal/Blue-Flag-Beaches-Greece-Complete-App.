@@ -17,14 +17,14 @@ from io import StringIO
 # ======================
 # CONFIGURATION (Updated URLs)
 # ======================
-BASE_URL = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/"
+BASE_URL = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App./main/"
 
 RESOURCES = {
-    "beach_data": f"{BASE_URL}blueflag_greece_scraped.csv",
-    "weather_cache": f"{BASE_URL}weather_cache.json",
-    "depth_data": f"{BASE_URL}beach_depth_database.json",
-    "flag_image": f"{BASE_URL}blue_flag_image.png",
-    "background_image": f"{BASE_URL}voidokoilia_edited.jpg"
+    # Try these alternative versions if files exist but with different names:
+    "beach_data": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App./main/beaches.csv",  # Alternative name
+    "weather_cache": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App./main/weather.json",  # Alternative name
+    "flag_image": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App./main/images/blue_flag.png",  # If in subfolder
+    "background_image": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App./main/photos/voidokolia.jpg"  # If in subfolder
 }
 
 # ======================
