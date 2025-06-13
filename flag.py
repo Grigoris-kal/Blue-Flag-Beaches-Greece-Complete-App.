@@ -132,24 +132,29 @@ def get_base64_image(image_path):
 
 @st.cache_data
 def load_beach_background():
-    """Load and cache the beach background image (edited first, then original)."""
-    possible_paths = [
-        "voidokoilia_edited.jpg",
-        "./voidokoilia_edited.jpg",
-        os.path.join(os.path.dirname(__file__), "voidokoilia_edited.jpg"),
-        os.path.join(os.getcwd(), "voidokoilia_edited.jpg"),
-        "voidokoilia.jpg",
-        "./voidokoilia.jpg",
-        os.path.join(os.path.dirname(__file__), "voidokoilia.jpg"),
-        os.path.join(os.getcwd(), "voidokoilia.jpg")
-    ]
-    for path in possible_paths:
-        if os.path.exists(path):
-            base64_img = get_base64_image(path)
-            if base64_img:
-                return f"data:image/jpeg;base64,{base64_img}"
-    # Fallback remote URL
-    return "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&q=80"
+    """Load and cache the beach background image from GitHub repository."""
+    try:
+        # Try edited version first
+        github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/voidokoilia_edited.jpg"
+        response = requests.get(github_url)
+        if response.status_code == 200:
+            import base64
+            base64_img = base64.b64encode(response.content).decode()
+            return f"data:image/jpeg;base64,{base64_img}"
+        
+        # Try original version
+        github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/voidokoilia.jpg"
+        response = requests.get(github_url)
+        if response.status_code == 200:
+            import base64
+            base64_img = base64.b64encode(response.content).decode()
+            return f"data:image/jpeg;base64,{base64_img}"
+        
+        # Fallback remote URL
+        return "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&q=80"
+    except Exception as e:
+        print(f"Error loading background from GitHub: {e}")
+        return "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&q=80"
 
 def create_transliteration_mapping():
     greek_to_latin = {
@@ -270,17 +275,19 @@ def create_searchable_columns(df):
 
 @st.cache_data(ttl=3600)
 def load_cached_data():
-    save_dir = os.path.join(os.path.expanduser("~"), "MyAPIs", "Blue_Flags_Greece_API", "flag_backend")
-    files_to_try = [
-        ("blueflag_greece_scraped.csv", "scraped"),
-        ("blueflag_greece_sample.csv", "sample"),
-    ]
-    for filename, data_type in files_to_try:
-        filepath = os.path.join(save_dir, filename)
-        if os.path.exists(filepath):
-            df = pd.read_csv(filepath)
-            return create_searchable_columns(df), data_type
-    return create_searchable_columns(create_sample_data()), "created_sample"
+    """Load beach data from GitHub repository"""
+    try:
+        github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/blueflag_greece_scraped.csv"
+        response = requests.get(github_url)
+        if response.status_code == 200:
+            from io import StringIO
+            df = pd.read_csv(StringIO(response.text))
+            return create_searchable_columns(df), "scraped"
+        else:
+            return create_searchable_columns(create_sample_data()), "created_sample"
+    except Exception as e:
+        print(f"Error loading CSV from GitHub: {e}")
+        return create_searchable_columns(create_sample_data()), "created_sample"
 
 def create_sample_data():
     return pd.DataFrame([
@@ -557,9 +564,14 @@ def main():
         with open(path, "rb") as img_file:
             return base64.b64encode(img_file.read()).decode()
 
-    # Get base64 string of your Blue Flag image
+    # Get base64 string of your Blue Flag image from GitHub
     try:
-        img_base64 = get_base64_of_image("blue_flag_image.png")
+        github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/blue_flag_image.png"
+        response = requests.get(github_url)
+        if response.status_code == 200:
+            img_base64 = base64.b64encode(response.content).decode()
+        else:
+            img_base64 = ""
     except:
         img_base64 = ""
     
