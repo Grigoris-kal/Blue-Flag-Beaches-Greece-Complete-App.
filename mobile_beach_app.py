@@ -10,7 +10,7 @@ import pydeck as pdk
 import json
 import os
 import base64
-import requests  
+import requests
 
 st.set_page_config(
     page_title="Blue Flag Beaches Greece - Mobile",
@@ -53,6 +53,14 @@ def transliterate_greek_to_latin(text):
     }
     return ''.join([greek_to_latin.get(char, char) for char in str(text)])
 
+def validate_url(url):
+    """Check if a URL exists and is accessible"""
+    try:
+        response = requests.head(url)
+        return response.status_code == 200
+    except:
+        return False
+
 st.markdown("""
 <style>
 /* Mobile styles (default) */
@@ -73,9 +81,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-
-
-
+@st.cache_data
 def load_beach_data():
     """Load beach data from GitHub with better error handling"""
     try:
