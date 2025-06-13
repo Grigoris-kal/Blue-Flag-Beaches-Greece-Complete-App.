@@ -170,10 +170,11 @@ def create_mobile_map(df, weather_cache):
             "style": {
                 "backgroundColor": "rgba(0, 83, 156, 0.95)",
                 "color": "white",
-                "fontSize": "12px",
-                "padding": "8px",
-                "borderRadius": "4px",
-                "maxWidth": "250px"
+                "fontSize": "20px",  # 70% bigger than 12px for mobile
+                "padding": "14px",   # 70% bigger padding
+                "borderRadius": "7px",
+                "maxWidth": "425px", # 70% bigger than 250px
+                "lineHeight": "1.4"
             }
         }
     )
@@ -206,6 +207,9 @@ def main():
         .beach-header img {{
             height: 60px; 
             margin-right: 15px;
+            background: white;
+            padding: 8px;
+            border-radius: 10px;
         }}
         
         /* Desktop/Laptop styles */
@@ -219,6 +223,9 @@ def main():
             .beach-header img {{
                 height: 80px; 
                 margin-right: 20px;
+                background: white;
+                padding: 10px;
+                border-radius: 12px;
             }}
         }}
         </style>
@@ -230,7 +237,7 @@ def main():
         </div>
         """, unsafe_allow_html=True)
     
-    # Background from GitHub
+    # Background from GitHub - clearer image
     if bg_img:
         st.markdown(f"""
         <style>
@@ -239,8 +246,10 @@ def main():
             background-size: cover;
             background-position: center;
             background-attachment: fixed;
-            background-color: rgba(255,255,255,0.8);
-            background-blend-mode: overlay;
+        }}
+        /* Remove hazy overlay and make background clearer */
+        .stApp > .main {{
+            background: rgba(255,255,255,0.1);
         }}
         </style>
         """, unsafe_allow_html=True)
@@ -255,8 +264,42 @@ def main():
         if weather_cache is None:
             weather_cache = {}
 
-    # Search functionality
-    search = st.text_input("🔍 Search beaches", placeholder="Type beach name...")
+    # Search functionality with button layout
+    col1, col2 = st.columns([7, 3])  # 70% for text input, 30% for button
+    
+    with col1:
+        search = st.text_input("🔍 Search beaches", placeholder="Type beach name...", label_visibility="collapsed")
+    
+    with col2:
+        # Add some spacing to align button with text input
+        st.markdown("<br>", unsafe_allow_html=True)
+        search_button = st.button("🔍 Search", use_container_width=True)
+    
+    # Add custom CSS for white background on search input
+    st.markdown("""
+    <style>
+    /* White background for search input */
+    .stTextInput > div > div > input {
+        background-color: white !important;
+        border: 2px solid #0053ac !important;
+        border-radius: 8px !important;
+        color: black !important;
+    }
+    
+    /* Style the search button */
+    .stButton > button {
+        background-color: #0053ac !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 8px !important;
+        font-weight: bold !important;
+    }
+    
+    .stButton > button:hover {
+        background-color: #0077c8 !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
     if search and not df.empty:
         mask = (df['Name'].str.contains(search, case=False, na=False))
         df = df[mask]
@@ -271,14 +314,24 @@ def main():
             .stDeckGlJsonChart > div {
                 height: 70vh !important;
             }
+            /* Make tooltips much larger on desktop/laptop */
+            .deck-tooltip {
+                font-size: 24px !important;  /* 100% bigger (double) */
+                padding: 16px !important;    /* 100% bigger padding */
+                max-width: 500px !important; /* 100% bigger width */
+                border-radius: 8px !important;
+            }
         }
         </style>
         """, unsafe_allow_html=True)
         
         st.pydeck_chart(create_mobile_map(df, weather_cache), use_container_width=True)
-        st.success(f"Showing {len(df)} beaches from GitHub data")
+        
+        # Add some space and then show the message at the bottom
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.success(f"Showing {len(df)} beaches")
     else:
-        st.warning("No beach data found or failed to load data")
+        st.warning("Oooops, we don't know that beach. At least you have a great view 😊")
 
 if __name__ == "__main__":
     main()
