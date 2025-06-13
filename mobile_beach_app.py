@@ -200,23 +200,23 @@ def main():
         </style>
         """, unsafe_allow_html=True)
     
-    # Load data from GitHub
-    with st.spinner("Loading data from GitHub..."):
-        df = load_beach_data()
-        weather_cache = load_weather_cache()
-    
-    # Rest of your original logic
-    search = st.text_input("🔍 Search beaches", placeholder="Type beach name...")
-    if search:
-        mask = (df['Name'].str.contains(search, case=False) | 
-               df['Name_English'].str.contains(search, case=False)
-        df = df[mask]
-    
-    if not df.empty:
-        st.pydeck_chart(create_mobile_map(df, weather_cache), use_container_width=True)
-        st.success(f"Showing {len(df)} beaches from GitHub data")
-    else:
-        st.warning("No beach data found")
+# Load data from GitHub
+with st.spinner("Loading data from GitHub..."):
+    df = load_beach_data()
+    weather_cache = load_weather_cache()
+
+# Rest of your original logic
+search = st.text_input("🔍 Search beaches", placeholder="Type beach name...")
+if search:
+    mask = (df['Name'].str.contains(search, case=False) | 
+           df['Name_English'].str.contains(search, case=False))  # Fixed line
+    df = df[mask]
+
+if not df.empty:
+    st.pydeck_chart(create_mobile_map(df, weather_cache), use_container_width=True)
+    st.success(f"Showing {len(df)} beaches from GitHub data")
+else:
+    st.warning("No beach data found")
 
 if __name__ == "__main__":
     main()
