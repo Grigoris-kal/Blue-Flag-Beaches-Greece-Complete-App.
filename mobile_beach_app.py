@@ -78,7 +78,7 @@ st.markdown("""
 def load_beach_data():
     """Load beach data from GitHub"""
     try:
-        github_url = "https://github.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App./blob/main/voidokoilia_edited.jpg"
+        github_url = "github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/blueflag_greece_scraped.csv""
         df = pd.read_csv(github_url)
         
         # Clean coordinates
@@ -99,7 +99,7 @@ def load_beach_data():
 def load_weather_cache():
     """Load weather data from GitHub cache"""
     try:
-        github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/weather_cache.json"
+        github_url = "github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App./main/voidokoilia_edited.jpg"
         response = requests.get(github_url)
         if response.status_code == 200:
             return response.json()
