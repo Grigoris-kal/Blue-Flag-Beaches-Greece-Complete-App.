@@ -278,7 +278,7 @@ def main():
     
     with col2:
         # Move button much higher to be exactly level with text input
-        st.markdown("<div style='margin-top: -40px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='margin-top: -20px;'></div>", unsafe_allow_html=True)
         search_button = st.button("🔍 Search", use_container_width=True)
     
     st.markdown('</div>', unsafe_allow_html=True)  # Close search-container
@@ -437,8 +437,8 @@ def main():
             
             /* Make funny message 100% larger on desktop */
             .beach-not-found-message {
-                font-size: 36px !important;  /* 100% larger than 18px */
-                padding: 40px !important;    /* Larger padding too */
+                font-size: 38px !important;  /* 100% larger than 18px */
+                padding: 42px !important;    /* Larger padding too */
             }
         }
         </style>
