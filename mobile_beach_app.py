@@ -76,11 +76,26 @@ st.markdown("""
 
 
 def load_beach_data():
-    """Load beach data from GitHub"""
+    """Load beach data from GitHub with enhanced error handling"""
     try:
         github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/blueflag_greece_scraped.csv"
-        # Add error handling for malformed CSV lines
-        df = pd.read_csv(github_url, on_bad_lines='skip', encoding='utf-8')
+        
+        # Try multiple CSV reading strategies
+        try:
+            # First attempt: standard reading with bad line skipping
+            df = pd.read_csv(github_url, on_bad_lines='skip', encoding='utf-8')
+        except:
+            try:
+                # Second attempt: with different separator and error handling
+                df = pd.read_csv(github_url, sep=',', on_bad_lines='skip', encoding='utf-8', quoting=1)
+            except:
+                # Third attempt: read as text and handle manually
+                import requests
+                response = requests.get(github_url)
+                lines = response.text.split('\n')
+                # Skip problematic lines and create DataFrame
+                good_lines = [line for line in lines if line.count(',') >= 5]  # Adjust based on expected columns
+                df = pd.read_csv(pd.io.StringIO('\n'.join(good_lines)))
         
         # Clean coordinates
         df["Latitude"] = pd.to_numeric(df["Latitude"], errors="coerce")
