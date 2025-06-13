@@ -303,7 +303,7 @@ def load_cached_data():
     except Exception as e:
         print(f"Error loading CSV from GitHub: {e}")
         return create_searchable_columns(create_sample_data()), "created_sample",
-    ]
+    
     for filename, data_type in files_to_try:
         filepath = os.path.join(save_dir, filename)
         if os.path.exists(filepath):
