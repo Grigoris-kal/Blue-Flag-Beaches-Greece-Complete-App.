@@ -62,41 +62,40 @@ def transliterate_greek_to_latin(text):
     return ''.join([greek_to_latin.get(char, char) for char in str(text)])
 
 def get_base64_of_image_from_github(url):
-    """Fetch image from GitHub and convert to base64"""
+    """Fetch image from GitHub and convert to base64 with proper error handling"""
     try:
-        response = requests.get(url)
-        if response.status_code == 200:
-            return base64.b64encode(response.content).decode()
-        return ""
-    except:
+        response = requests.get(url, timeout=10)  # Added timeout
+        response.raise_for_status()  # Check for HTTP errors
+        return base64.b64encode(response.content).decode('utf-8')
+    except requests.exceptions.RequestException as e:  # Specific exception
+        st.warning(f"⚠️ Image load failed: {str(e)}")
         return ""
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=3600, show_spinner="Loading beach data...")
 def load_beach_data():
-    """Load beach data from GitHub (original logic preserved)"""
+    """Load and validate beach data from GitHub"""
+    csv_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/blueflag_greece_scraped.csv"
+    
     try:
-        df = pd.read_csv(BEACH_DATA_URL)
-        df["Latitude"] = pd.to_numeric(df["Latitude"], errors="coerce")
-        df["Longitude"] = pd.to_numeric(df["Longitude"], errors="coerce")
-        df = df.dropna(subset=["Latitude", "Longitude"])
-        
-        df['Name_English'] = df['Name'].apply(transliterate_greek_to_latin)
-        df['Municipality_English'] = df['Municipality'].str.replace('Δήμος ', '').apply(transliterate_greek_to_latin)
+        df = pd.read_csv(csv_url)
+        assert not df.empty, "Data loaded but empty"
+        assert 'Name' in df.columns, "Missing required 'Name' column"
         return df
     except Exception as e:
-        st.error(f"Failed to load beach data: {str(e)}")
+        st.error(f"⚠️ Beach data loading failed: {str(e)}")
         return pd.DataFrame()
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=3600, show_spinner="Loading weather data...")
 def load_weather_cache():
-    """Load weather cache from GitHub (original logic preserved)"""
+    """Load and validate weather cache from GitHub"""
     try:
-        response = requests.get(WEATHER_CACHE_URL)
-        if response.status_code == 200:
-            return response.json()
-        return {}
+        response = requests.get(WEATHER_CACHE_URL, timeout=10)
+        response.raise_for_status()
+        weather_data = response.json()
+        assert isinstance(weather_data, dict), "Weather data should be a dictionary"
+        return weather_data
     except Exception as e:
-        st.error(f"Weather cache loading failed: {str(e)}")
+        st.error(f"⚠️ Weather cache loading failed: {str(e)}")
         return {}
 
 def create_mobile_map(df, weather_cache):
