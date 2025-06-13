@@ -10,6 +10,7 @@ import pydeck as pdk
 import json
 import os
 import base64
+import requests  
 
 st.set_page_config(
     page_title="Blue Flag Beaches Greece - Mobile",
@@ -76,25 +77,36 @@ st.markdown("""
 
 
 def load_beach_data():
-    """Load beach data from GitHub"""
+    """Load beach data from GitHub with better error handling"""
     try:
         github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/blueflag_greece_scraped.csv"
+        df = pd.read_csv(github_url)
         
-        # Simple approach - just skip bad lines
-        df = pd.read_csv(github_url, on_bad_lines='skip')
+        # Verify required columns exist
+        required_columns = ['Name', 'Municipality', 'Latitude', 'Longitude']
+        missing_cols = [col for col in required_columns if col not in df.columns]
+        if missing_cols:
+            st.error(f"CSV missing required columns: {', '.join(missing_cols)}")
+            return pd.DataFrame()
         
-        # Clean coordinates
+        # Clean coordinates with better validation
         df["Latitude"] = pd.to_numeric(df["Latitude"], errors="coerce")
         df["Longitude"] = pd.to_numeric(df["Longitude"], errors="coerce")
-        df = df.dropna(subset=["Latitude", "Longitude"])
         
+        # Remove rows with invalid coordinates
+        valid_coords = df.dropna(subset=["Latitude", "Longitude"])
+        if len(valid_coords) == 0:
+            st.error("No valid coordinates found in dataset!")
+            return pd.DataFrame()
+            
         # Add English translations
-        df['Name_English'] = df['Name'].apply(transliterate_greek_to_latin)
-        df['Municipality_English'] = df['Municipality'].str.replace('Δήμος ', '').apply(transliterate_greek_to_latin)
+        valid_coords['Name_English'] = valid_coords['Name'].apply(transliterate_greek_to_latin)
+        valid_coords['Municipality_English'] = valid_coords['Municipality'].str.replace('Δήμος ', '').apply(transliterate_greek_to_latin)
         
-        return df
+        return valid_coords
+        
     except Exception as e:
-        st.error(f"Beach data not found! Error: {e}")
+        st.error(f"Failed to load beach data: {str(e)}")
         return pd.DataFrame()
 
 
@@ -102,14 +114,13 @@ def load_beach_data():
 def load_weather_cache():
     """Load weather data from GitHub cache"""
     try:
-        github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/blueflag_greece_scraped.csv"
+        github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/weather_cache.json"  # Fixed URL
         response = requests.get(github_url)
         if response.status_code == 200:
             return response.json()
-        else:
-            return {}
+        return {}
     except Exception as e:
-        print(f"Error loading weather cache: {e}")
+        st.error(f"Weather cache loading failed: {str(e)}")
         return {}
 
 def get_weather_for_beach(lat, lon, weather_cache):
