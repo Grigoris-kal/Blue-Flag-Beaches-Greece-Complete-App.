@@ -102,7 +102,7 @@ def load_beach_data():
 def load_weather_cache():
     """Load weather data from GitHub cache"""
     try:
-        github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/voidokoilia_edited.jpg"
+        github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/blueflag_greece_scraped.csv"
         response = requests.get(github_url)
         if response.status_code == 200:
             return response.json()
