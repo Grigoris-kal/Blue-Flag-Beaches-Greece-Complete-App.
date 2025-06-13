@@ -278,7 +278,7 @@ def create_mobile_map(df, weather_cache):
     return deck
 def main():
     # Function to encode image to base64
-    def get_base64_of_image_from_github(github_url):
+def get_base64_of_image_from_github(github_url):
     try:
         response = requests.get(github_url)
         if response.status_code == 200:
