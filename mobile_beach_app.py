@@ -40,27 +40,7 @@ st.set_page_config(
 # CORE FUNCTIONS
 # ======================
 @st.cache_data
-def degrees_to_compass(degrees):
-    """Convert wind direction degrees to compass direction with arrow"""
-    if degrees is None or degrees == 'N/A':
-        return 'N/A'
-    
-    try:
-        degrees = float(degrees)
-        # Normalize to 0-360 range
-        degrees = degrees % 360
-        
-        # Define compass directions with arrows
-        directions = [
-            "N ↓", "NNE ↙", "NE ↙", "ENE ↙", "E ←", "ESE ↖", "SE ↖", "SSE ↖",
-            "S ↑", "SSW ↗", "SW ↗", "WSW ↗", "W →", "WNW ↘", "NW ↘", "NNW ↘"
-        ]
-        
-        # Calculate index (each direction covers 22.5 degrees)
-        index = int((degrees + 11.25) / 22.5) % 16
-        return directions[index]
-    except:
-        return 'N/A'
+def transliterate_greek_to_latin(text):
     """Convert Greek text to Latin characters"""
     if pd.isna(text):
         return ""
@@ -151,7 +131,7 @@ def create_mobile_map(df, weather_cache):
             tooltip_text += f"\n🌊 Sea: {weather.get('sea_temp', 'N/A')}°C"
             tooltip_text += f"\n🌊 Waves: {weather.get('wave_height', 'N/A')}m"
             tooltip_text += f"\n💨 Wind: {weather.get('wind_speed', 'N/A')} km/h"
-            tooltip_text += f"\n🧭 Wind Direction: {degrees_to_compass(weather.get('wind_direction', 'N/A'))}"
+            tooltip_text += f"\n🧭 Wind Direction: {weather.get('wind_direction', 'N/A')}°"
         
         map_data.append({
             'lat': row['Latitude'],
@@ -289,16 +269,16 @@ def main():
         if weather_cache is None:
             weather_cache = {}
 
-    # Search functionality with button layout - make wider to match map
+    # Search functionality with button layout - wider elements
     st.markdown('<div class="search-container">', unsafe_allow_html=True)
-    col1, col2 = st.columns([10, 2])  # Much wider ratio - 83% text, 17% button
+    col1, col2 = st.columns([8, 2])  # 80% for text input, 20% for button - wider overall
     
     with col1:
         search = st.text_input("🔍 Search beaches", placeholder="Type beach name...", label_visibility="collapsed")
     
     with col2:
-        # Add spacing to align button with text input vertically
-        st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
+        # Move button much higher to be exactly level with text input
+        st.markdown("<div style='margin-top: -20px;'></div>", unsafe_allow_html=True)
         search_button = st.button("🔍 Search", use_container_width=True)
     
     st.markdown('</div>', unsafe_allow_html=True)  # Close search-container
@@ -312,9 +292,6 @@ def main():
         border: 2px solid #0053ac !important;
         border-radius: 8px !important;
         color: black !important;
-        height: 50px !important;  /* Fixed height for both mobile and desktop */
-        box-sizing: border-box !important;
-        padding: 12px !important;
     }
     
     /* Darker placeholder text */
@@ -330,9 +307,6 @@ def main():
         border: none !important;
         border-radius: 8px !important;
         font-weight: bold !important;
-        height: 50px !important;  /* Exact same height as input */
-        box-sizing: border-box !important;
-        padding: 12px 20px !important;
     }
     
     .stButton > button:hover {
@@ -435,46 +409,36 @@ def main():
                 z-index: 10 !important;
             }
             
-            /* Override desktop search styling to ensure same height */
+            /* Make search elements even larger and fix button alignment */
             .stTextInput > div > div > input {
-                font-size: 20px !important;
-                height: 55px !important;     /* Consistent height */
-                box-sizing: border-box !important;
-                padding: 15px !important;
+                font-size: 20px !important;  /* Larger font */
+                padding: 15px !important;    /* More padding */
+                height: 55px !important;     /* Taller input */
+                width: 100% !important;      /* Full width of column */
             }
             
             .stButton > button {
-                font-size: 20px !important;
-                height: 55px !important;     /* Exact same height as input */
-                box-sizing: border-box !important;
-                padding: 15px 25px !important;
-                margin-top: 0px !important;
-                width: 100% !important;
+                font-size: 20px !important;  /* Larger font */
+                padding: 15px 25px !important; /* More padding */
+                height: 55px !important;     /* Same height as input */
+                margin-top: 0px !important;  /* Align with input */
+                width: 100% !important;      /* Full width of column */
             }
             
-            /* Remove problematic margin adjustments */
+            /* Fix button container alignment on desktop */
             .search-container .stButton {
-                margin-top: 0px !important;
+                margin-top: -16px !important;  /* Move button up more to align perfectly */
             }
             
-            /* Ensure search container uses full available width to match map */
-            .search-container {
-                width: 160% !important;  /* Same as map width */
-                margin-left: -30% !important;  /* Center with map */
-                margin-top: -50% !important;  /* Move higher */
-                margin-bottom: 2rem !important;
-                position: relative !important;
-                z-index: 10 !important;
-            }
-            
+            /* Ensure search container uses full available width */
             .search-container > div {
                 width: 100% !important;
             }
             
             /* Make funny message 100% larger on desktop */
             .beach-not-found-message {
-                font-size: 36px !important;  /* 100% larger than 18px */
-                padding: 40px !important;    /* Larger padding too */
+                font-size: 38px !important;  /* 100% larger than 18px */
+                padding: 42px !important;    /* Larger padding too */
             }
         }
         </style>
