@@ -78,7 +78,7 @@ st.markdown("""
 def load_beach_data():
     """Load beach data from GitHub"""
     try:
-        github_url = "https://github.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App./tree/main"
+        github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/blueflag_greece_scraped.csv"
         
         # Simple approach - just skip bad lines
         df = pd.read_csv(github_url, on_bad_lines='skip')
@@ -102,7 +102,7 @@ def load_beach_data():
 def load_weather_cache():
     """Load weather data from GitHub cache"""
     try:
-        github_url = "https://github.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App./tree/main"
+        github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/blueflag_greece_scraped.csv"
         response = requests.get(github_url)
         if response.status_code == 200:
             return response.json()
