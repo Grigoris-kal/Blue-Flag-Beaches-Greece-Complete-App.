@@ -19,17 +19,21 @@ from io import StringIO
 # ======================
 BASE_URL = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App./main/"
 
+
 RESOURCES = {
-    # Try these alternative versions if files exist but with different names:
-    "beach_data": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App./main/beaches.csv",  # Alternative name
-    "weather_cache": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App./main/weather.json",  # Alternative name
-    "flag_image": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App./main/images/blue_flag.png",  # If in subfolder
-    "background_image": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App./main/photos/voidokolia.jpg"  # If in subfolder
+    "beach_data": BASE_URL + "blueflag_greece_scraped.csv",
+    "weather_cache": BASE_URL + "weather_cache.json", 
+    "flag_image": BASE_URL + "blue_flag_image.png",
+    "background_image": BASE_URL + "voidokoilia_edited.jpg",
+    "depth_database": BASE_URL + "beach_depth_database.json"
 }
+
 
 # ======================
 # PAGE CONFIG
 # ======================
+
+@st.cache_data(ttl=3600)
 st.set_page_config(
     page_title="Blue Flag Beaches Greece - Mobile",
     page_icon="🌊",
