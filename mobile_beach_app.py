@@ -39,13 +39,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-if 'app' not in st.query_params:
-    st.set_page_config(
-        page_title="Blue Flag Beaches Greece - Mobile",
-        page_icon="blue_flag_image.ico",
-        layout="centered",  # Different from desktop
-        initial_sidebar_state="collapsed"
-    )
 
 @st.cache_data
 def transliterate_greek_to_latin(text):
