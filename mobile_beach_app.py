@@ -311,9 +311,9 @@ def main():
                 Blue Flag Beaches Greece
             </h1>
             <p style="color: white; margin: 5px 0 0 0; font-size: 14px;">
-                📱 Mobile Optimized Version
-            </p>
-        </div>
+                📱 Mobile Optimized Version       
+        </p>       
+            </div>
         """, unsafe_allow_html=True)
     else:
         st.markdown("""
@@ -327,6 +327,7 @@ def main():
             </p>
         </div>
         """, unsafe_allow_html=True)
+
     # Add same background as main app
     try:
         github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/voidokoilia_edited.jpg"
