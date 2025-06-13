@@ -262,7 +262,7 @@ def create_mobile_map(df, weather_cache):
                 "backgroundColor": "rgba(0, 83, 156, 0.95)",
                 "color": "white",
                 "fontSize": "16px",
-                "padding": "15px",
+                                "padding": "15px",
                 "borderRadius": "8px",
                 "maxWidth": "350px",
                 "border": "2px solid #FFD700"
@@ -275,7 +275,7 @@ def create_mobile_map(df, weather_cache):
         }
     )
     
-return deck
+    return deck
 
 def main():
     # Function to encode image to base64
@@ -293,8 +293,8 @@ def main():
         img_base64 = get_base64_of_image_from_github(github_url)
     except:
         img_base64 = ""
+
     # Mobile-optimized header with Blue Flag image
-   # Mobile-optimized header with Blue Flag image
     if img_base64:
         st.markdown(f"""
         <div style="background: linear-gradient(135deg, #0053ac 0%, #0077c8 100%); 
@@ -302,7 +302,7 @@ def main():
             <h1 style="color: white; margin: 0; font-size: 24px; display: flex; align-items: center; justify-content: center;">
                 <img src="data:image/png;base64,{img_base64}" style="height: 60px; 
                                                                     width: 60px; 
-                                                                    margin-right: 15px; 
+                                                                    margin-right: 15px;
                                                                     padding: 8px; 
                                                                     background-color: white; 
                                                                     border-radius: 8px; 
