@@ -905,15 +905,12 @@ def main():
       
 
         with st.spinner("🗺️ Loading beach map with pre-loaded depth data..."):
-            # Convert DataFrame to JSON for caching
-            df_json = display_df.to_json(date_format="iso")
-            
-            # Get cached HTML
-            map_html = build_map_html(df_json, JAWG_TOKEN)
+            # Create the map directly (no caching to avoid reloads)
+            beach_map = create_beach_map(display_df)
             
             # Display using components
             st.components.v1.html(
-                map_html,
+                beach_map._repr_html_(),
                 height=650,
                 scrolling=False
             )
