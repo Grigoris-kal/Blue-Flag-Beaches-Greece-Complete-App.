@@ -38,9 +38,9 @@ def load_depth_database():
     depth_files = [
         "beach_depth_database.json",
         "./beach_depth_database.json",
-        
+    ]    
     github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/beach_depth_database.json"
-    ]
+    
     
     for filepath in depth_files:
         if os.path.exists(filepath):
