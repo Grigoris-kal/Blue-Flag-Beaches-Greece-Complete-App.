@@ -79,7 +79,9 @@ def load_beach_data():
     """Load beach data from GitHub"""
     try:
         github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/blueflag_greece_scraped.csv"
-        df = pd.read_csv(github_url, on_bad_lines='skip', encoding='utf-8', error_bad_lines=False)
+        
+        # Simple approach - just skip bad lines
+        df = pd.read_csv(github_url, on_bad_lines='skip')
         
         # Clean coordinates
         df["Latitude"] = pd.to_numeric(df["Latitude"], errors="coerce")
@@ -94,6 +96,8 @@ def load_beach_data():
     except Exception as e:
         st.error(f"Beach data not found! Error: {e}")
         return pd.DataFrame()
+
+
 @st.cache_data
 def load_weather_cache():
     """Load weather data from GitHub cache"""
