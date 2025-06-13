@@ -275,24 +275,24 @@ def create_mobile_map(df, weather_cache):
         }
     )
     
-    return deck
+return deck
+
 def main():
     # Function to encode image to base64
     def get_base64_of_image_from_github(github_url):
         try:
-        response = requests.get(github_url)
-        if response.status_code == 200:
-            return base64.b64encode(response.content).decode()
-        return ""
-    except:
-        return ""
+            response = requests.get(github_url)
+            if response.status_code == 200:
+                return base64.b64encode(response.content).decode()
+            return ""
+        except:
+            return ""
 
-try:
-    github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/blue_flag_image.png"
-    img_base64 = get_base64_of_image_from_github(github_url)
+    try:
+        github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/blue_flag_image.png"
+        img_base64 = get_base64_of_image_from_github(github_url)
     except:
         img_base64 = ""
-
     # Mobile-optimized header with Blue Flag image
    # Mobile-optimized header with Blue Flag image
     if img_base64:
