@@ -101,9 +101,11 @@ def load_weather_cache():
         response = requests.get(github_url)
         if response.status_code == 200:
             return response.json()
-    except:
-        pass
-    return {}
+        else:
+            return {}
+    except Exception as e:
+        print(f"Error loading weather cache: {e}")
+        return {}
 
 def get_weather_for_beach(lat, lon, weather_cache):
     """Get weather data for a beach"""
