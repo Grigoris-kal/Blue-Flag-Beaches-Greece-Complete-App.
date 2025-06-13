@@ -131,6 +131,7 @@ def create_mobile_map(df, weather_cache):
             tooltip_text += f"\n🌊 Sea: {weather.get('sea_temp', 'N/A')}°C"
             tooltip_text += f"\n🌊 Waves: {weather.get('wave_height', 'N/A')}m"
             tooltip_text += f"\n💨 Wind: {weather.get('wind_speed', 'N/A')} km/h"
+            tooltip_text += f"\n🧭 Wind Direction: {weather.get('wind_direction', 'N/A')}°"
         
         map_data.append({
             'lat': row['Latitude'],
@@ -276,8 +277,8 @@ def main():
         search = st.text_input("🔍 Search beaches", placeholder="Type beach name...", label_visibility="collapsed")
     
     with col2:
-        # Move button higher to align with text input (no extra height)
-        st.markdown("<div style='margin-top: -32px;'></div>", unsafe_allow_html=True)
+        # Move button much higher to be exactly level with text input
+        st.markdown("<div style='margin-top: -40px;'></div>", unsafe_allow_html=True)
         search_button = st.button("🔍 Search", use_container_width=True)
     
     st.markdown('</div>', unsafe_allow_html=True)  # Close search-container
@@ -426,12 +427,18 @@ def main():
             
             /* Fix button container alignment on desktop */
             .search-container .stButton {
-                margin-top: -8px !important;  /* Move button up to align with text input */
+                margin-top: -16px !important;  /* Move button up more to align perfectly */
             }
             
             /* Ensure search container uses full available width */
             .search-container > div {
                 width: 100% !important;
+            }
+            
+            /* Make funny message 100% larger on desktop */
+            .beach-not-found-message {
+                font-size: 36px !important;  /* 100% larger than 18px */
+                padding: 40px !important;    /* Larger padding too */
             }
         }
         </style>
@@ -445,7 +452,7 @@ def main():
     else:
         # Show the funny message in a dark blue box for visibility
         st.markdown("""
-        <div style="
+        <div class="beach-not-found-message" style="
             background-color: #0053ac; 
             color: white; 
             padding: 20px; 
