@@ -329,7 +329,7 @@ def main():
         """, unsafe_allow_html=True)
 
     # Add same background as main app
-   try:
+    try:
     github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/voidokoilia_edited.jpg"
     response = requests.get(github_url)
     if response.status_code == 200:
