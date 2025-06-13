@@ -6,27 +6,39 @@ Run this on a different port for mobile users
 
 import streamlit as st
 import pandas as pd
-import pydeck as pdk  # Fixed typo (was 'pak')
+import pydeck as pdk
 import json
 import os
 import base64
 import requests
 import time
+from io import StringIO
 
-# GitHub file paths (EXACTLY as in your repo)
-BEACH_DATA_URL = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/blueflag_greece_scraped.csv"
-WEATHER_CACHE_URL = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/weather_cache.json"
-DEPTH_DATA_URL = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/beach_depth_database.json"
-BLUE_FLAG_IMAGE_URL = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/blue_flag_image.png"
-BACKGROUND_IMAGE_URL = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/voidokoilia_edited.jpg"
+# ======================
+# CONFIGURATION (Updated URLs)
+# ======================
+BASE_URL = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/"
 
+RESOURCES = {
+    "beach_data": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/blueflag_greece_scraped.csv",
+    "weather_cache": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/weather_cache.json",
+    "depth_data": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/beach_depth_database.json",
+    "flag_image": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/blue_flag_image.png",
+    "background_image": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/voidokoilia_edited.jpg"
+}
+# ======================
+# PAGE CONFIG
+# ======================
 st.set_page_config(
     page_title="Blue Flag Beaches Greece - Mobile",
-    page_icon="🌊",  # Fixed from '@'
+    page_icon="🌊",
     layout="centered",
     initial_sidebar_state="collapsed"
 )
 
+# ======================
+# CORE FUNCTIONS
+# ======================
 @st.cache_data
 def transliterate_greek_to_latin(text):
     """Convert Greek text to Latin characters"""
@@ -61,50 +73,38 @@ def transliterate_greek_to_latin(text):
     }
     return ''.join([greek_to_latin.get(char, char) for char in str(text)])
 
-def get_base64_of_image_from_github(url):
-    """Fetch image from GitHub and convert to base64 with proper error handling"""
-    try:
-        response = requests.get(url, timeout=10)  # Added timeout
-        response.raise_for_status()  # Check for HTTP errors
-        return base64.b64encode(response.content).decode('utf-8')
-    except requests.exceptions.RequestException as e:  # Specific exception
-        st.warning(f"⚠️ Image load failed: {str(e)}")
-        return ""
+@st.cache_data(ttl=3600)
+def load_resource(resource_name):
+    """Universal loader for all resources"""
+    url = RESOURCES.get(resource_name)
+    if not url:
+        st.error(f"Unknown resource: {resource_name}")
+        return None
 
-@st.cache_data(ttl=3600, show_spinner="Loading beach data...")
-def load_beach_data():
-    """Load and validate beach data from GitHub"""
-    csv_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/blueflag_greece_scraped.csv"
-    
-    try:
-        df = pd.read_csv(csv_url)
-        assert not df.empty, "Data loaded but empty"
-        assert 'Name' in df.columns, "Missing required 'Name' column"
-        return df
-    except Exception as e:
-        st.error(f"⚠️ Beach data loading failed: {str(e)}")
-        return pd.DataFrame()
+    for attempt in range(3):  # 3 retries
+        try:
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            
+            if resource_name.endswith('_data'):
+                return pd.read_csv(StringIO(response.text))
+            elif resource_name.endswith('_cache') or resource_name.endswith('_data'):
+                return response.json()
+            else:  # Images
+                return base64.b64encode(response.content).decode('utf-8')
+                
+        except Exception as e:
+            if attempt == 2:  # Final attempt
+                st.error(f"Failed to load {resource_name}\nURL: {url}\nError: {str(e)}")
+            time.sleep(1)
+    return None
 
-@st.cache_data(ttl=3600, show_spinner="Loading weather data...")
-def load_weather_cache():
-    """Load and validate weather cache from GitHub"""
-    try:
-        response = requests.get(WEATHER_CACHE_URL, timeout=10)
-        response.raise_for_status()
-        weather_data = response.json()
-        assert isinstance(weather_data, dict), "Weather data should be a dictionary"
-        return weather_data
-    except Exception as e:
-        st.error(f"⚠️ Weather cache loading failed: {str(e)}")
-        return {}
-
+# ======================
+# MAIN APP LOGIC
+# ======================
 def create_mobile_map(df, weather_cache):
-    """Create mobile-optimized PyDeck map (original logic preserved)"""
-    try:
-        response = requests.get(DEPTH_DATA_URL)
-        depth_database = response.json() if response.status_code == 200 else {}
-    except:
-        depth_database = {}
+    """Create mobile-optimized PyDeck map"""
+    depth_data = load_resource("depth_data") or {}
     
     map_data = []
     for _, row in df.iterrows():
@@ -112,11 +112,11 @@ def create_mobile_map(df, weather_cache):
         
         tooltip_text = f"📌 GPS: {row['Latitude']:.4f}, {row['Longitude']:.4f}"
         
-        # Depth data logic (original)
+        # Depth data logic
         beach_key = f"{row['Latitude']}_{row['Longitude']}"
         depth_info = None
-        if 'beaches' in depth_database and beach_key in depth_database['beaches']:
-            depth_info = depth_database['beaches'][beach_key]['depth_info']
+        if 'beaches' in depth_data and beach_key in depth_data['beaches']:
+            depth_info = depth_data['beaches'][beach_key]['depth_info']
         
         if depth_info and depth_info.get("depth_5m") not in ["Unknown", "Error"]:
             tooltip_text += f"\n🏊 Depth (5m from shore): {depth_info['depth_5m']}m"
@@ -169,17 +169,17 @@ def create_mobile_map(df, weather_cache):
     )
 
 def main():
-    # Load images from GitHub
-    img_base64 = get_base64_of_image_from_github(BLUE_FLAG_IMAGE_URL)
-    bg_data = get_base64_of_image_from_github(BACKGROUND_IMAGE_URL)
+    # Load all resources
+    flag_img = load_resource("flag_image")
+    bg_img = load_resource("background_image")
     
     # Header with GitHub-hosted image
-    if img_base64:
+    if flag_img:
         st.markdown(f"""
         <div style="background: linear-gradient(135deg, #0053ac 0%, #0077c8 100%); 
                     padding: 15px; border-radius: 10px; margin-bottom: 15px; text-align: center;">
             <h1 style="color: white; margin: 0; font-size: 24px; display: flex; align-items: center; justify-content: center;">
-                <img src="data:image/png;base64,{img_base64}" style="height: 60px; margin-right: 15px;">
+                <img src="data:image/png;base64,{flag_img}" style="height: 60px; margin-right: 15px;">
                 Blue Flag Beaches Greece
             </h1>
             <p style="color: white; margin: 5px 0 0 0; font-size: 14px;">
@@ -189,33 +189,38 @@ def main():
         """, unsafe_allow_html=True)
     
     # Background from GitHub
-    if bg_data:
+    if bg_img:
         st.markdown(f"""
         <style>
         .stApp {{
-            background-image: url('data:image/jpeg;base64,{bg_data}');
+            background-image: url('data:image/jpeg;base64,{bg_img}');
             background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-color: rgba(255,255,255,0.8);
+            background-blend-mode: overlay;
         }}
         </style>
         """, unsafe_allow_html=True)
     
-# Load data from GitHub
-with st.spinner("Loading data from GitHub..."):
-    df = load_beach_data()
-    weather_cache = load_weather_cache()
+    # Load data from GitHub
+    with st.spinner("Loading beach data..."):
+        df = load_resource("beach_data") or pd.DataFrame()
+        weather_cache = load_resource("weather_cache") or {}
 
-# Rest of your original logic
-search = st.text_input("🔍 Search beaches", placeholder="Type beach name...")
-if search:
-    mask = (df['Name'].str.contains(search, case=False) | 
-           df['Name_English'].str.contains(search, case=False))  # Fixed line
-    df = df[mask]
+    # Search functionality
+    search = st.text_input("🔍 Search beaches", placeholder="Type beach name...")
+    if search:
+        mask = (df['Name'].str.contains(search, case=False) | 
+               df['Name_English'].str.contains(search, case=False))
+        df = df[mask]
 
-if not df.empty:
-    st.pydeck_chart(create_mobile_map(df, weather_cache), use_container_width=True)
-    st.success(f"Showing {len(df)} beaches from GitHub data")
-else:
-    st.warning("No beach data found")
+    # Display results
+    if not df.empty:
+        st.pydeck_chart(create_mobile_map(df, weather_cache), use_container_width=True)
+        st.success(f"Showing {len(df)} beaches from GitHub data")
+    else:
+        st.warning("No beach data found")
 
 if __name__ == "__main__":
     main()
