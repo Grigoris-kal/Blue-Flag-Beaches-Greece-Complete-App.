@@ -74,12 +74,10 @@ def transliterate_greek_to_latin(text):
     return ''.join([greek_to_latin.get(char, char) for char in str(text)])
 
 def load_beach_data():
-    """Load beach data from the same source as main app"""
-    save_dir = "."  # Current directory (same as Python files)
-    csv_path = os.path.join(save_dir, "blueflag_greece_scraped.csv")
-    
-    if os.path.exists(csv_path):
-        df = pd.read_csv(csv_path)
+    """Load beach data from GitHub"""
+    try:
+        github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/blueflag_greece_scraped.csv"
+        df = pd.read_csv(github_url)
         # Clean coordinates
         df["Latitude"] = pd.to_numeric(df["Latitude"], errors="coerce")
         df["Longitude"] = pd.to_numeric(df["Longitude"], errors="coerce")
@@ -96,14 +94,12 @@ def load_beach_data():
 
 @st.cache_data
 def load_weather_cache():
-    """Load weather data from cache"""
+    """Load weather data from GitHub cache"""
     try:
-        save_dir = os.path.dirname(os.path.abspath(__file__))
-        cache_path = os.path.join(save_dir, "weather_cache.json")
-        
-        if os.path.exists(cache_path):
-            with open(cache_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
+        github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/weather_cache.json"
+        response = requests.get(github_url)
+        if response.status_code == 200:
+            return response.json()
     except:
         pass
     return {}
@@ -136,13 +132,11 @@ def create_mobile_map(df, weather_cache):
     """Create mobile-optimized PyDeck map"""
     
     # Load depth database
-    try:
-        save_dir = os.path.dirname(os.path.abspath(__file__))
-        depth_path = os.path.join(save_dir, "beach_depth_database.json")
-        
-        if os.path.exists(depth_path):
-            with open(depth_path, 'r', encoding='utf-8') as f:
-                depth_database = json.load(f)
+   try:
+        github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/beach_depth_database.json"
+        response = requests.get(github_url)
+        if response.status_code == 200:
+            depth_database = response.json()
         else:
             depth_database = {}
     except:
@@ -282,13 +276,18 @@ def create_mobile_map(df, weather_cache):
     return deck
 def main():
     # Function to encode image to base64
-    def get_base64_of_image(path):
-        with open(path, "rb") as img_file:
-            return base64.b64encode(img_file.read()).decode()
-
-    # Get base64 string of your Blue Flag image
+    def get_base64_of_image_from_github(github_url):
     try:
-        img_base64 = get_base64_of_image("blue_flag_image.png")
+        response = requests.get(github_url)
+        if response.status_code == 200:
+            return base64.b64encode(response.content).decode()
+        return ""
+    except:
+        return ""
+
+try:
+    github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/blue_flag_image.png"
+    img_base64 = get_base64_of_image_from_github(github_url)
     except:
         img_base64 = ""
 
@@ -328,13 +327,11 @@ def main():
         """, unsafe_allow_html=True)
 
     # Add same background as main app
-    try:
-        save_dir = os.path.dirname(os.path.abspath(__file__))
-        bg_path = os.path.join(save_dir, "voidokoilia_edited.jpg")
-        
-        if os.path.exists(bg_path):
-            with open(bg_path, "rb") as f:
-                bg_data = base64.b64encode(f.read()).decode()
+   try:
+    github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/voidokoilia_edited.jpg"
+    response = requests.get(github_url)
+    if response.status_code == 200:
+        bg_data = base64.b64encode(response.content).decode()
             
             st.markdown(f"""
             <style>
