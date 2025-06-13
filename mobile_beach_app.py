@@ -78,6 +78,7 @@ def load_beach_data():
     try:
         github_url = "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/blueflag_greece_scraped.csv"
         df = pd.read_csv(github_url)
+        
         # Clean coordinates
         df["Latitude"] = pd.to_numeric(df["Latitude"], errors="coerce")
         df["Longitude"] = pd.to_numeric(df["Longitude"], errors="coerce")
@@ -88,8 +89,8 @@ def load_beach_data():
         df['Municipality_English'] = df['Municipality'].str.replace('Δήμος ', '').apply(transliterate_greek_to_latin)
         
         return df
-    else:
-        st.error("Beach data not found!")
+    except Exception as e:
+        st.error(f"Beach data not found! Error: {e}")
         return pd.DataFrame()
 
 @st.cache_data
