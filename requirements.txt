@@ -2,12 +2,13 @@
 requests>=2.31.0
 pandas>=2.0.0
 python-dotenv>=1.0.0
-
 # For concurrent API calls
 futures3>=1.0.0
-
 # Optional: if you need these for your specific setup
 numpy>=1.24.0
+
+# Streamlit for web app
+streamlit>=1.28.0
 
 # Note: The script uses these APIs (no additional packages needed):
 # - Open-Meteo API (free, no key required)
