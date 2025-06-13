@@ -11,10 +11,30 @@ import json
 import os
 import base64
 
+st.markdown("""
+<style>
+/* Mobile styles (default) */
+.main-container { width: 100%; }
+.map-container { height: 400px; }
+
+/* Desktop styles */
+@media (min-width: 768px) {
+    .main-container { max-width: 1200px; margin: 0 auto; }
+    .map-container { height: 600px; }
+    .sidebar { display: block; }
+}
+
+/* Large desktop */
+@media (min-width: 1200px) {
+    .map-container { height: 800px; }
+}
+</style>
+""", unsafe_allow_html=True)
+
 if 'app' not in st.query_params:
     st.set_page_config(
         page_title="Blue Flag Beaches Greece - Mobile",
-        page_icon="🌊",
+        page_icon="blue_flag_image.ico",
         layout="centered",  # Different from desktop
         initial_sidebar_state="collapsed"
     )
