@@ -265,6 +265,7 @@ def main():
             weather_cache = {}
 
     # Search functionality with button layout
+    st.markdown('<div class="search-container">', unsafe_allow_html=True)
     col1, col2 = st.columns([7, 3])  # 70% for text input, 30% for button
     
     with col1:
@@ -274,6 +275,8 @@ def main():
         # Reduce spacing to move button closer to text input
         st.markdown("<div style='margin-top: -8px;'></div>", unsafe_allow_html=True)
         search_button = st.button("🔍 Search", use_container_width=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)  # Close search-container
     
     # Add custom CSS for white background on search input and other styling
     st.markdown("""
@@ -292,20 +295,17 @@ def main():
         opacity: 1 !important;
     }
     
-    /* Style the search button with Greek flag inspired stripes */
+    /* Style the search button - simple dark blue box */
     .stButton > button {
-        background: linear-gradient(45deg, #0053ac 25%, white 25%, white 50%, #0053ac 50%, #0053ac 75%, white 75%, white) !important;
-        background-size: 20px 20px !important;
+        background-color: #0053ac !important;
         color: white !important;
-        border: 2px solid #0053ac !important;
+        border: none !important;
         border-radius: 8px !important;
         font-weight: bold !important;
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.5) !important;
     }
     
     .stButton > button:hover {
-        background: linear-gradient(45deg, #0077c8 25%, white 25%, white 50%, #0077c8 50%, #0077c8 75%, white 75%, white) !important;
-        background-size: 20px 20px !important;
+        background-color: #0077c8 !important;
     }
     
     /* Custom warning message styling */
@@ -347,15 +347,15 @@ def main():
 
     # Display results
     if not df.empty:
-        # Add responsive styling for the map
+    # Add responsive styling for the map and layout
         st.markdown("""
         <style>
         /* Make map larger on desktop/laptop */
         @media (min-width: 768px) {
             .stDeckGlJsonChart > div {
                 height: 70vh !important;
-                width: 160% !important;  /* 60% wider */
-                margin-left: -30% !important;  /* Center the wider map */
+                width: 120% !important;  /* 20% wider */
+                margin-left: -10% !important;  /* Center the wider map */
             }
             /* Make tooltips much larger on desktop/laptop */
             .deck-tooltip {
@@ -363,6 +363,20 @@ def main():
                 padding: 16px !important;    /* 100% bigger padding */
                 max-width: 500px !important; /* 100% bigger width */
                 border-radius: 8px !important;
+            }
+            /* Make page more scrollable with equal spacing */
+            .main .block-container {
+                padding-top: 3rem !important;
+                padding-bottom: 6rem !important;  /* More space at bottom */
+            }
+            /* Make header and search bar as wide as map */
+            .beach-header {
+                width: 120% !important;
+                margin-left: -10% !important;
+            }
+            .search-container {
+                width: 120% !important;
+                margin-left: -10% !important;
             }
         }
         </style>
