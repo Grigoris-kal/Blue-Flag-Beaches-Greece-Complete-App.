@@ -69,6 +69,8 @@ def find_closest_weather_match(lat, lon, weather_cache, tolerance=0.01):
             continue
     
     return closest_weather
+
+def degrees_to_compass(degrees):
     """Convert wind direction degrees to compass direction with arrow"""
     if degrees is None or degrees == 'N/A':
         return 'N/A'
@@ -89,6 +91,8 @@ def find_closest_weather_match(lat, lon, weather_cache, tolerance=0.01):
         return directions[index]
     except:
         return 'N/A'
+
+def transliterate_greek_to_latin(text):
     """Convert Greek text to Latin characters"""
     if pd.isna(text):
         return ""
@@ -421,13 +425,14 @@ def main():
     }
     </style>
     """, unsafe_allow_html=True)
+    
     if search and not df.empty:
         mask = (df['Name'].str.contains(search, case=False, na=False))
         df = df[mask]
 
     # Display results
     if not df.empty:
-    # Add responsive styling for the map and layout
+        # Add responsive styling for the map and layout
         st.markdown("""
         <style>
         /* Make map larger on desktop/laptop */
