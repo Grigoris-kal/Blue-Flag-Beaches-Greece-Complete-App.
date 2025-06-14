@@ -70,27 +70,17 @@ def find_closest_weather_match(lat, lon, weather_cache, tolerance=0.01):
     
     return closest_weather
 
-def degrees_to_compass(degrees):
-    """Convert wind direction degrees to compass direction with arrow"""
-    if degrees is None or degrees == 'N/A':
-        return 'N/A'
-    
+def get_wind_arrow(direction):
+    """Convert wind direction to arrow emoji"""
+    if direction == 'N/A' or direction is None:
+        return ''
     try:
-        degrees = float(degrees)
-        # Normalize to 0-360 range
-        degrees = degrees % 360
-        
-        # Define compass directions with arrows
-        directions = [
-            "N ↓", "NNE ↙", "NE ↙", "ENE ↙", "E ←", "ESE ↖", "SE ↖", "SSE ↖",
-            "S ↑", "SSW ↗", "SW ↗", "WSW ↗", "W →", "WNW ↘", "NW ↘", "NNW ↘"
-        ]
-        
-        # Calculate index (each direction covers 22.5 degrees)
-        index = int((degrees + 11.25) / 22.5) % 16
-        return directions[index]
+        dir_val = float(direction)
+        arrows = ['↓', '↙', '←', '↖', '↑', '↗', '→', '↘']
+        index = int((dir_val + 22.5) / 45) % 8
+        return arrows[index]
     except:
-        return 'N/A'
+        return ''
 
 def transliterate_greek_to_latin(text):
     """Convert Greek text to Latin characters"""
@@ -193,7 +183,7 @@ def create_mobile_map(df, weather_cache):
             tooltip_text += f"\n🌊 Sea: {weather.get('sea_temp', 'N/A')}°C"
             tooltip_text += f"\n🌊 Waves: {weather.get('wave_height', 'N/A')}m"
             tooltip_text += f"\n💨 Wind: {weather.get('wind_speed', 'N/A')} km/h"
-            tooltip_text += f"\n🧭 Wind Direction: {degrees_to_compass(weather.get('wind_direction', 'N/A'))}"
+            tooltip_text += f"\n🧭 Wind Direction: {get_wind_arrow(weather.get('wind_direction', 'N/A'))}"
         
         map_data.append({
             'lat': row['Latitude'],
