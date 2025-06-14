@@ -82,6 +82,39 @@ def get_wind_arrow(direction):
     except:
         return ''
 
+def transliterate_greek_to_latin(text):
+    """Convert Greek text to Latin characters"""
+    if pd.isna(text):
+        return ""
+    
+    greek_to_latin = {
+        'Α': 'A', 'α': 'a', 'Ά': 'A', 'ά': 'a',
+        'Β': 'V', 'β': 'v',
+        'Γ': 'G', 'γ': 'g',
+        'Δ': 'D', 'δ': 'd',
+        'Ε': 'E', 'ε': 'e', 'Έ': 'E', 'έ': 'e',
+        'Ζ': 'Z', 'ζ': 'z',
+        'Η': 'I', 'η': 'i', 'Ή': 'I', 'ή': 'i',
+        'Θ': 'Th', 'θ': 'th',
+        'Ι': 'I', 'ι': 'i', 'Ί': 'I', 'ί': 'i',
+        'Κ': 'K', 'κ': 'k',
+        'Λ': 'L', 'λ': 'l',
+        'Μ': 'M', 'μ': 'm',
+        'Ν': 'N', 'ν': 'n',
+        'Ξ': 'X', 'ξ': 'x',
+        'Ο': 'O', 'ο': 'o', 'Ό': 'O', 'ό': 'o',
+        'Π': 'P', 'π': 'p',
+        'Ρ': 'R', 'ρ': 'r',
+        'Σ': 'S', 'σ': 's', 'ς': 's',
+        'Τ': 'T', 'τ': 't',
+        'Υ': 'Y', 'υ': 'y', 'Ύ': 'Y', 'ύ': 'y',
+        'Φ': 'F', 'φ': 'f',
+        'Χ': 'Ch', 'χ': 'ch',
+        'Ψ': 'Ps', 'ψ': 'ps',
+        'Ω': 'O', 'ω': 'o', 'Ώ': 'O', 'ώ': 'o'
+    }
+    return ''.join([greek_to_latin.get(char, char) for char in str(text)])
+
 @st.cache_data(ttl=3600)
 def load_resource(resource_name):
     """Universal loader for all resources"""
