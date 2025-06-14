@@ -121,19 +121,28 @@ def create_mobile_map(df, weather_cache):
     
     map_data = []
     for _, row in df.iterrows():
-        # Round coordinates to match weather cache format (6 decimal places)
-        lat_rounded = round(row['Latitude'], 6)
-        lon_rounded = round(row['Longitude'], 6)
-        weather_key = f"{lat_rounded}_{lon_rounded}"
-        weather = weather_cache.get(weather_key, {})
+        # Flexible coordinate matching with different accuracy levels
+        weather = {}
+        for decimals in [6, 5, 4, 3]:
+            lat_rounded = round(row['Latitude'], decimals)
+            lon_rounded = round(row['Longitude'], decimals)
+            weather_key = f"{lat_rounded}_{lon_rounded}"
+            if weather_key in weather_cache:
+                weather = weather_cache[weather_key]
+                break
         
         tooltip_text = f"📌 GPS: {row['Latitude']:.4f}, {row['Longitude']:.4f}"
         
-        # Depth data logic
-        beach_key = f"{lat_rounded}_{lon_rounded}"
+        # Depth data logic - also use flexible matching
         depth_info = None
-        if 'beaches' in depth_data and beach_key in depth_data['beaches']:
-            depth_info = depth_data['beaches'][beach_key]['depth_info']
+        if 'beaches' in depth_data:
+            for decimals in [6, 5, 4, 3]:
+                lat_rounded = round(row['Latitude'], decimals)
+                lon_rounded = round(row['Longitude'], decimals)
+                beach_key = f"{lat_rounded}_{lon_rounded}"
+                if beach_key in depth_data['beaches']:
+                    depth_info = depth_data['beaches'][beach_key]['depth_info']
+                    break
         
         if depth_info and depth_info.get("depth_5m") not in ["Unknown", "Error"]:
             tooltip_text += f"\n🏊 Depth (5m from shore): {depth_info['depth_5m']}m"
