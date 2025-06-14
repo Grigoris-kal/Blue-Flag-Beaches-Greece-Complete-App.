@@ -317,7 +317,7 @@ def main():
     
     with col2:
         # Move button much higher to be exactly level with text input
-        st.markdown("<div style='margin-top: -20px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='margin-top: -40px;'></div>", unsafe_allow_html=True)
         search_button = st.button("🔍 Search", use_container_width=True)
     
     st.markdown('</div>', unsafe_allow_html=True)  # Close search-container
