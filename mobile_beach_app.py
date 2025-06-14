@@ -168,9 +168,9 @@ def create_mobile_map(df, weather_cache):
             tooltip_text += f"\n🌡️ Air: {weather.get('air_temp', 'N/A')}°C"
             tooltip_text += f"\n🌊 Sea: {weather.get('sea_temp', 'N/A')}°C"
             tooltip_text += f"\n🌊 Waves: {weather.get('wave_height', 'N/A')}m"
-            tooltip_text += f"\n🌊 Sea Conditions: {get_sea_conditions(weather.get('wave_height', 'N/A'))}"
             tooltip_text += f"\n💨 Wind: {weather.get('wind_speed', 'N/A')} km/h"
             tooltip_text += f"\n🧭 Wind Direction: {get_wind_arrow(weather.get('wind_direction', 'N/A'))}"
+            tooltip_text += f"\n🌊 Sea Conditions: {get_sea_conditions(weather.get('wave_height', 'N/A'))}"
         
         map_data.append({
             'lat': row['Latitude'],
