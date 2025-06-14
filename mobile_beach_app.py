@@ -85,6 +85,23 @@ def get_wind_arrow(direction):
     except:
         return ''
 
+def get_sea_conditions(wave_height):
+    """Convert wave height to sea conditions"""
+    if wave_height == 'N/A' or wave_height is None:
+        return 'N/A'
+    try:
+        height = float(wave_height)
+        if height < 0.5:
+            return "Calm"
+        elif height < 1.0:
+            return "Moderate"
+        elif height < 1.5:
+            return "Choppy"
+        else:
+            return "Rough"
+    except:
+        return 'N/A'
+
 @st.cache_data(ttl=3600)
 def load_resource(resource_name):
     """Universal loader for all resources"""
@@ -151,6 +168,7 @@ def create_mobile_map(df, weather_cache):
             tooltip_text += f"\n🌡️ Air: {weather.get('air_temp', 'N/A')}°C"
             tooltip_text += f"\n🌊 Sea: {weather.get('sea_temp', 'N/A')}°C"
             tooltip_text += f"\n🌊 Waves: {weather.get('wave_height', 'N/A')}m"
+            tooltip_text += f"\n🌊 Sea Conditions: {get_sea_conditions(weather.get('wave_height', 'N/A'))}"
             tooltip_text += f"\n💨 Wind: {weather.get('wind_speed', 'N/A')} km/h"
             tooltip_text += f"\n🧭 Wind Direction: {get_wind_arrow(weather.get('wind_direction', 'N/A'))}"
         
