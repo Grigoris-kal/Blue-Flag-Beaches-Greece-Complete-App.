@@ -152,7 +152,7 @@ def create_mobile_map(df, weather_cache, depth_data):
         # Depth data logic - also use flexible matching
         depth_info = None
         if 'beaches' in depth_data:
-            for decimals in [6, 5, 4, 3]:
+            for decimals in [7,6, 5, 4, 3]:
                 lat_rounded = round(row['Latitude'], decimals)
                 lon_rounded = round(row['Longitude'], decimals)
                 beach_key = f"{lat_rounded}_{lon_rounded}"
