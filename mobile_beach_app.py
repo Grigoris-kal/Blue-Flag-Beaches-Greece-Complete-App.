@@ -132,9 +132,8 @@ def load_resource(resource_name):
 # ======================
 # MAIN APP LOGIC
 # ======================
-def create_mobile_map(df, weather_cache):
+def create_mobile_map(df, weather_cache, depth_data):
     """Create mobile-optimized PyDeck map"""
-    depth_data = load_resource("depth_data") or {}
     
     map_data = []
     for _, row in df.iterrows():
@@ -168,9 +167,9 @@ def create_mobile_map(df, weather_cache):
             tooltip_text += f"\n🌡️ Air: {weather.get('air_temp', 'N/A')}°C"
             tooltip_text += f"\n🌊 Sea: {weather.get('sea_temp', 'N/A')}°C"
             tooltip_text += f"\n🌊 Waves: {weather.get('wave_height', 'N/A')}m"
+            tooltip_text += f"\n🌊 Sea Conditions: {get_sea_conditions(weather.get('wave_height', 'N/A'))}"
             tooltip_text += f"\n💨 Wind: {weather.get('wind_speed', 'N/A')} km/h"
             tooltip_text += f"\n🧭 Wind Direction: {get_wind_arrow(weather.get('wind_direction', 'N/A'))}"
-            tooltip_text += f"\n🌊 Sea Conditions: {get_sea_conditions(weather.get('wave_height', 'N/A'))}"
         
         map_data.append({
             'lat': row['Latitude'],
@@ -302,11 +301,14 @@ def main():
     with st.spinner("Loading beach data..."):
         df = load_resource("beach_data")
         weather_cache = load_resource("weather_cache")
+        depth_data = load_resource("depth_data")
         
         if df is None:
             df = pd.DataFrame()
         if weather_cache is None:
             weather_cache = {}
+        if depth_data is None:
+            depth_data = {}
 
     # Search functionality with button layout - wider elements
     st.markdown('<div class="search-container">', unsafe_allow_html=True)
@@ -487,7 +489,7 @@ def main():
         </style>
         """, unsafe_allow_html=True)
         
-        st.pydeck_chart(create_mobile_map(df, weather_cache), use_container_width=True)
+        st.pydeck_chart(create_mobile_map(df, weather_cache, depth_data), use_container_width=True)
         
         # Add some space and then show the message at the bottom
         st.markdown("<br>", unsafe_allow_html=True)
