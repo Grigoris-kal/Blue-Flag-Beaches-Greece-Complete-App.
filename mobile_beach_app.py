@@ -40,48 +40,6 @@ st.set_page_config(
 # CORE FUNCTIONS
 # ======================
 @st.cache_data
-def find_closest_weather_match(lat, lon, weather_cache, tolerance=0.01):
-    """Find the closest weather data match within tolerance"""
-    if not weather_cache:
-        return {}
-    
-    # First try exact match with different rounding levels
-    for decimals in [6, 5, 4, 3]:
-        lat_rounded = round(lat, decimals)
-        lon_rounded = round(lon, decimals)
-        weather_key = f"{lat_rounded}_{lon_rounded}"
-        if weather_key in weather_cache:
-            return weather_cache[weather_key]
-    
-    # If no exact match, find closest within tolerance
-    closest_distance = float('inf')
-    closest_weather = {}
-    
-    for weather_key, weather_data in weather_cache.items():
-        try:
-            cache_lat, cache_lon = map(float, weather_key.split('_'))
-            distance = ((lat - cache_lat) ** 2 + (lon - cache_lon) ** 2) ** 0.5
-            
-            if distance < tolerance and distance < closest_distance:
-                closest_distance = distance
-                closest_weather = weather_data
-        except:
-            continue
-    
-    return closest_weather
-
-def get_wind_arrow(direction):
-    """Convert wind direction to arrow emoji"""
-    if direction == 'N/A' or direction is None:
-        return ''
-    try:
-        dir_val = float(direction)
-        arrows = ['↓', '↙', '←', '↖', '↑', '↗', '→', '↘']
-        index = int((dir_val + 22.5) / 45) % 8
-        return arrows[index]
-    except:
-        return ''
-
 def transliterate_greek_to_latin(text):
     """Convert Greek text to Latin characters"""
     if pd.isna(text):
@@ -151,29 +109,19 @@ def create_mobile_map(df, weather_cache):
     
     map_data = []
     for _, row in df.iterrows():
-        # Skip rows with missing coordinates
-        if pd.isna(row['Latitude']) or pd.isna(row['Longitude']):
-            continue
-            
-        lat = row['Latitude']
-        lon = row['Longitude']
-        
-        # Use flexible weather matching
-        weather = find_closest_weather_match(lat, lon, weather_cache)
+        # Round coordinates to match weather cache format (6 decimal places)
+        lat_rounded = round(row['Latitude'], 6)
+        lon_rounded = round(row['Longitude'], 6)
+        weather_key = f"{lat_rounded}_{lon_rounded}"
+        weather = weather_cache.get(weather_key, {})
         
         tooltip_text = f"📌 GPS: {row['Latitude']:.4f}, {row['Longitude']:.4f}"
         
-        # Depth data logic - also use flexible matching
+        # Depth data logic
+        beach_key = f"{lat_rounded}_{lon_rounded}"
         depth_info = None
-        if depth_data and 'beaches' in depth_data:
-            # Try different rounding levels for depth data too
-            for decimals in [6, 5, 4, 3]:
-                lat_rounded = round(lat, decimals)
-                lon_rounded = round(lon, decimals)
-                beach_key = f"{lat_rounded}_{lon_rounded}"
-                if beach_key in depth_data['beaches']:
-                    depth_info = depth_data['beaches'][beach_key]['depth_info']
-                    break
+        if 'beaches' in depth_data and beach_key in depth_data['beaches']:
+            depth_info = depth_data['beaches'][beach_key]['depth_info']
         
         if depth_info and depth_info.get("depth_5m") not in ["Unknown", "Error"]:
             tooltip_text += f"\n🏊 Depth (5m from shore): {depth_info['depth_5m']}m"
@@ -183,7 +131,7 @@ def create_mobile_map(df, weather_cache):
             tooltip_text += f"\n🌊 Sea: {weather.get('sea_temp', 'N/A')}°C"
             tooltip_text += f"\n🌊 Waves: {weather.get('wave_height', 'N/A')}m"
             tooltip_text += f"\n💨 Wind: {weather.get('wind_speed', 'N/A')} km/h"
-            tooltip_text += f"\n🧭 Wind Direction: {get_wind_arrow(weather.get('wind_direction', 'N/A'))}"
+            tooltip_text += f"\n🧭 Wind Direction: {weather.get('wind_direction', 'N/A')}°"
         
         map_data.append({
             'lat': row['Latitude'],
@@ -316,29 +264,21 @@ def main():
         df = load_resource("beach_data")
         weather_cache = load_resource("weather_cache")
         
-        # Debug information
         if df is None:
-            st.error("❌ Failed to load beach data!")
             df = pd.DataFrame()
-        else:
-            st.success(f"✅ Loaded {len(df)} beaches successfully!")
-            
         if weather_cache is None:
-            st.warning("⚠️ Weather data not available")
             weather_cache = {}
-        else:
-            st.success(f"✅ Weather cache loaded with {len(weather_cache)} entries")
 
-    # Search functionality with button layout - make wider to match map
+    # Search functionality with button layout - wider elements
     st.markdown('<div class="search-container">', unsafe_allow_html=True)
-    col1, col2 = st.columns([10, 2])  # Much wider ratio - 83% text, 17% button
+    col1, col2 = st.columns([8, 2])  # 80% for text input, 20% for button - wider overall
     
     with col1:
         search = st.text_input("🔍 Search beaches", placeholder="Type beach name...", label_visibility="collapsed")
     
     with col2:
-        # Move button DOWN to align with text input (negative margin moves UP, positive moves DOWN)
-        st.markdown("<div style='margin-top: -25px;'></div>", unsafe_allow_html=True)
+        # Move button much higher to be exactly level with text input
+        st.markdown("<div style='margin-top: -20px;'></div>", unsafe_allow_html=True)
         search_button = st.button("🔍 Search", use_container_width=True)
     
     st.markdown('</div>', unsafe_allow_html=True)  # Close search-container
@@ -352,9 +292,6 @@ def main():
         border: 2px solid #0053ac !important;
         border-radius: 8px !important;
         color: black !important;
-        height: 50px !important;  /* Fixed height for both mobile and desktop */
-        box-sizing: border-box !important;
-        padding: 12px !important;
     }
     
     /* Darker placeholder text */
@@ -370,9 +307,6 @@ def main():
         border: none !important;
         border-radius: 8px !important;
         font-weight: bold !important;
-        height: 50px !important;  /* Exact same height as input */
-        box-sizing: border-box !important;
-        padding: 12px 20px !important;
     }
     
     .stButton > button:hover {
@@ -423,15 +357,13 @@ def main():
     }
     </style>
     """, unsafe_allow_html=True)
-    
     if search and not df.empty:
         mask = (df['Name'].str.contains(search, case=False, na=False))
         df = df[mask]
-        st.info(f"🔍 Found {len(df)} beaches matching '{search}'")
 
     # Display results
     if not df.empty:
-        # Add responsive styling for the map and layout
+    # Add responsive styling for the map and layout
         st.markdown("""
         <style>
         /* Make map larger on desktop/laptop */
@@ -477,46 +409,36 @@ def main():
                 z-index: 10 !important;
             }
             
-            /* Override desktop search styling to ensure same height */
+            /* Make search elements even larger and fix button alignment */
             .stTextInput > div > div > input {
-                font-size: 20px !important;
-                height: 55px !important;     /* Consistent height */
-                box-sizing: border-box !important;
-                padding: 15px !important;
+                font-size: 20px !important;  /* Larger font */
+                padding: 15px !important;    /* More padding */
+                height: 55px !important;     /* Taller input */
+                width: 100% !important;      /* Full width of column */
             }
             
             .stButton > button {
-                font-size: 20px !important;
-                height: 55px !important;     /* Exact same height as input */
-                box-sizing: border-box !important;
-                padding: 15px 25px !important;
-                margin-top: 0px !important;
-                width: 100% !important;
+                font-size: 20px !important;  /* Larger font */
+                padding: 15px 25px !important; /* More padding */
+                height: 55px !important;     /* Same height as input */
+                margin-top: 0px !important;  /* Align with input */
+                width: 100% !important;      /* Full width of column */
             }
             
-            /* Remove problematic margin adjustments */
+            /* Fix button container alignment on desktop */
             .search-container .stButton {
-                margin-top: 0px !important;
+                margin-top: -16px !important;  /* Move button up more to align perfectly */
             }
             
-            /* Ensure search container uses full available width to match map */
-            .search-container {
-                width: 160% !important;  /* Same as map width */
-                margin-left: -30% !important;  /* Center with map */
-                margin-top: -50% !important;  /* Move higher */
-                margin-bottom: 2rem !important;
-                position: relative !important;
-                z-index: 10 !important;
-            }
-            
+            /* Ensure search container uses full available width */
             .search-container > div {
                 width: 100% !important;
             }
             
             /* Make funny message 100% larger on desktop */
             .beach-not-found-message {
-                font-size: 36px !important;  /* 100% larger than 18px */
-                padding: 40px !important;    /* Larger padding too */
+                font-size: 38px !important;  /* 100% larger than 18px */
+                padding: 42px !important;    /* Larger padding too */
             }
         }
         </style>
