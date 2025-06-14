@@ -168,9 +168,9 @@ def create_mobile_map(df, weather_cache):
             tooltip_text += f"\n🌡️ Air: {weather.get('air_temp', 'N/A')}°C"
             tooltip_text += f"\n🌊 Sea: {weather.get('sea_temp', 'N/A')}°C"
             tooltip_text += f"\n🌊 Waves: {weather.get('wave_height', 'N/A')}m"
+            tooltip_text += f"\n🌊 Sea Conditions: {get_sea_conditions(weather.get('wave_height', 'N/A'))}"
             tooltip_text += f"\n💨 Wind: {weather.get('wind_speed', 'N/A')} km/h"
             tooltip_text += f"\n🧭 Wind Direction: {get_wind_arrow(weather.get('wind_direction', 'N/A'))}"
-            tooltip_text += f"\n🌊 Sea Conditions: {get_sea_conditions(weather.get('wave_height', 'N/A'))}"
         
         map_data.append({
             'lat': row['Latitude'],
@@ -316,8 +316,8 @@ def main():
         search = st.text_input("🔍 Search beaches", placeholder="Type beach name...", label_visibility="collapsed")
     
     with col2:
-        # Move button much higher to be exactly level with text input
-        st.markdown("<div style='margin-top: -40px;'></div>", unsafe_allow_html=True)
+        # Align button with text input
+        st.markdown("<div style='margin-top: -50px;'></div>", unsafe_allow_html=True)
         search_button = st.button("🔍 Search", use_container_width=True)
     
     st.markdown('</div>', unsafe_allow_html=True)  # Close search-container
@@ -331,6 +331,8 @@ def main():
         border: 2px solid #0053ac !important;
         border-radius: 8px !important;
         color: black !important;
+        height: 55px !important;  /* 10% taller than default */
+        padding: 12px !important;
     }
     
     /* Darker placeholder text */
@@ -346,6 +348,7 @@ def main():
         border: none !important;
         border-radius: 8px !important;
         font-weight: bold !important;
+        height: 55px !important;  /* Match text input height */
     }
     
     .stButton > button:hover {
