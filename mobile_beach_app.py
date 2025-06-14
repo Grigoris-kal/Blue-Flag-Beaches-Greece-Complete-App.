@@ -317,7 +317,8 @@ def main():
         search = st.text_input("🔍 Search beaches", placeholder="Type beach name...", label_visibility="collapsed")
     
     with col2:
-        # Reset button position
+        # Bring button down slightly to align with text input
+        st.markdown("<div style='margin-top: 17px;'></div>", unsafe_allow_html=True)
         search_button = st.button("🔍 Search", use_container_width=True)
     
     st.markdown('</div>', unsafe_allow_html=True)  # Close search-container
