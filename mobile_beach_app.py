@@ -332,7 +332,7 @@ def main():
         border: 2px solid #0053ac !important;
         border-radius: 8px !important;
         color: black !important;
-        height: 55px !important;  /* 10% taller than default */
+        height: 60px !important;  /* 10% taller than default */
         padding: 12px !important;
     }
     
