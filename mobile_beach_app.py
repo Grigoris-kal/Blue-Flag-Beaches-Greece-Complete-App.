@@ -316,18 +316,10 @@ def main():
         df = load_resource("beach_data")
         weather_cache = load_resource("weather_cache")
         
-        # Debug information
         if df is None:
-            st.error("❌ Failed to load beach data!")
             df = pd.DataFrame()
-        else:
-            st.success(f"✅ Loaded {len(df)} beaches successfully!")
-            
         if weather_cache is None:
-            st.warning("⚠️ Weather data not available")
             weather_cache = {}
-        else:
-            st.success(f"✅ Weather cache loaded with {len(weather_cache)} entries")
 
     # Search functionality with button layout - make wider to match map
     st.markdown('<div class="search-container">', unsafe_allow_html=True)
@@ -427,7 +419,6 @@ def main():
     if search and not df.empty:
         mask = (df['Name'].str.contains(search, case=False, na=False))
         df = df[mask]
-        st.info(f"🔍 Found {len(df)} beaches matching '{search}'")
 
     # Display results
     if not df.empty:
