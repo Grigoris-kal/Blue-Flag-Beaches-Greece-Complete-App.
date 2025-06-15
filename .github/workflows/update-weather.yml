@@ -42,4 +42,4 @@ jobs:
           else
             git commit -m "Update weather cache - $(date)"
             git push
-        fi
+          fi
