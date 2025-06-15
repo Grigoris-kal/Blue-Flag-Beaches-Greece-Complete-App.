@@ -7034,6 +7034,406 @@
       },
       "last_updated": "2025-06-06T21:50:08.830127"
     },
+    "39.1467790_23.3926055": {
+      "beach_name": "Mikri Banana",
+      "greek_name": "Μικρή Μπανάνα",
+      "lat": 39.1467790,
+      "lon": 23.3926055,
+      "depth_info": {
+        "depth_5m": 1.2,
+        "depth_10m": 2.6,
+        "beach_type": "Blue Flag certified - safe",
+        "suitable_for": "Families (Blue Flag standards)",
+        "source": "Blue Flag safety assumption",
+        "confidence": "Low - generic estimate",
+        "last_updated": "2025-06-15"
+      },
+      "last_updated": "2025-06-15T12:00:00.000000"
+    },
+    "38.1447307_24.0353823": {
+      "beach_name": "Livanates 2/Schoinias",
+      "greek_name": "Λιβανάτες 2/Σχοινιάς",
+      "lat": 38.1447307,
+      "lon": 24.0353823,
+      "depth_info": {
+        "depth_5m": 1.2,
+        "depth_10m": 2.6,
+        "beach_type": "Blue Flag certified - safe",
+        "suitable_for": "Families (Blue Flag standards)",
+        "source": "Blue Flag safety assumption",
+        "confidence": "Low - generic estimate",
+        "last_updated": "2025-06-15"
+      },
+      "last_updated": "2025-06-15T12:00:00.000000"
+    },
+    "38.4662968_23.5878938": {
+      "beach_name": "Asteria Chalkidas",
+      "greek_name": "Αστέρια Χαλκίδας",
+      "lat": 38.4662968,
+      "lon": 23.5878938,
+      "depth_info": {
+        "depth_5m": 1.2,
+        "depth_10m": 2.6,
+        "beach_type": "Blue Flag certified - safe",
+        "suitable_for": "Families (Blue Flag standards)",
+        "source": "Blue Flag safety assumption",
+        "confidence": "Low - generic estimate",
+        "last_updated": "2025-06-15"
+      },
+      "last_updated": "2025-06-15T12:00:00.000000"
+    },
+    "36.6893676_22.8365620": {
+      "beach_name": "Plytra-Pachiammos",
+      "greek_name": "Πλύτρα-Παχιάμμος",
+      "lat": 36.6893676,
+      "lon": 22.8365620,
+      "depth_info": {
+        "depth_5m": 1.2,
+        "depth_10m": 2.6,
+        "beach_type": "Blue Flag certified - safe",
+        "suitable_for": "Families (Blue Flag standards)",
+        "source": "Blue Flag safety assumption",
+        "confidence": "Low - generic estimate",
+        "last_updated": "2025-06-15"
+      },
+      "last_updated": "2025-06-15T12:00:00.000000"
+    },
+    "37.0232461_22.1327136": {
+      "beach_name": "Anatoliki Kalamata 1/Anastase",
+      "greek_name": "Ανατολική Καλαμάτα 1/Ανάσταση",
+      "lat": 37.0232461,
+      "lon": 22.1327136,
+      "depth_info": {
+        "depth_5m": 1.2,
+        "depth_10m": 2.6,
+        "beach_type": "Blue Flag certified - safe",
+        "suitable_for": "Families (Blue Flag standards)",
+        "source": "Blue Flag safety assumption",
+        "confidence": "Low - generic estimate",
+        "last_updated": "2025-06-15"
+      },
+      "last_updated": "2025-06-15T12:00:00.000000"
+    },
+    "37.0090699_22.1548181": {
+      "beach_name": "Verga-Almyros",
+      "greek_name": "Βέργα-Αλμυρός",
+      "lat": 37.0090699,
+      "lon": 22.1548181,
+      "depth_info": {
+        "depth_5m": 1.2,
+        "depth_10m": 2.6,
+        "beach_type": "Blue Flag certified - safe",
+        "suitable_for": "Families (Blue Flag standards)",
+        "source": "Blue Flag safety assumption",
+        "confidence": "Low - generic estimate",
+        "last_updated": "2025-06-15"
+      },
+      "last_updated": "2025-06-15T12:00:00.000000"
+    },
+    "36.9826665_22.1498470": {
+      "beach_name": "Mikri Mantineia",
+      "greek_name": "Μικρή Μαντίνεια",
+      "lat": 36.9826665,
+      "lon": 22.1498470,
+      "depth_info": {
+        "depth_5m": 1.2,
+        "depth_10m": 2.6,
+        "beach_type": "Blue Flag certified - safe",
+        "suitable_for": "Families (Blue Flag standards)",
+        "source": "Blue Flag safety assumption",
+        "confidence": "Low - generic estimate",
+        "last_updated": "2025-06-15"
+      },
+      "last_updated": "2025-06-15T12:00:00.000000"
+    },
+    "37.6997127_21.3175966": {
+      "beach_name": "Skafidia",
+      "greek_name": "Σκαφιδιά",
+      "lat": 37.6997127,
+      "lon": 21.3175966,
+      "depth_info": {
+        "depth_5m": 1.2,
+        "depth_10m": 2.6,
+        "beach_type": "Blue Flag certified - safe",
+        "suitable_for": "Families (Blue Flag standards)",
+        "source": "Blue Flag safety assumption",
+        "confidence": "Low - generic estimate",
+        "last_updated": "2025-06-15"
+      },
+      "last_updated": "2025-06-15T12:00:00.000000"
+    },
+    "39.3990132_20.2568165": {
+      "beach_name": "Mega Ammos",
+      "greek_name": "Μέγα Άμμος",
+      "lat": 39.3990132,
+      "lon": 20.2568165,
+      "depth_info": {
+        "depth_5m": 1.2,
+        "depth_10m": 2.6,
+        "beach_type": "Blue Flag certified - safe",
+        "suitable_for": "Families (Blue Flag standards)",
+        "source": "Blue Flag safety assumption",
+        "confidence": "Low - generic estimate",
+        "last_updated": "2025-06-15"
+      },
+      "last_updated": "2025-06-15T12:00:00.000000"
+    },
+    "39.2854267_20.3913626": {
+      "beach_name": "Valtos/Parga Beach Resort",
+      "greek_name": "Βάλτος/Parga Beach Resort",
+      "lat": 39.2854267,
+      "lon": 20.3913626,
+      "depth_info": {
+        "depth_5m": 1.2,
+        "depth_10m": 2.6,
+        "beach_type": "Blue Flag certified - safe",
+        "suitable_for": "Families (Blue Flag standards)",
+        "source": "Blue Flag safety assumption",
+        "confidence": "Low - generic estimate",
+        "last_updated": "2025-06-15"
+      },
+      "last_updated": "2025-06-15T12:00:00.000000"
+    },
+    "39.5918021_19.8084784": {
+      "beach_name": "Glyfada/Domes of Corfu",
+      "greek_name": "Γλυφάδα/Domes of Corfu",
+      "lat": 39.5918021,
+      "lon": 19.8084784,
+      "depth_info": {
+        "depth_5m": 1.2,
+        "depth_10m": 2.6,
+        "beach_type": "Blue Flag certified - safe",
+        "suitable_for": "Families (Blue Flag standards)",
+        "source": "Blue Flag safety assumption",
+        "confidence": "Low - generic estimate",
+        "last_updated": "2025-06-15"
+      },
+      "last_updated": "2025-06-15T12:00:00.000000"
+    },
+    "38.8430255_20.6835328": {
+      "beach_name": "Ai Giannis",
+      "greek_name": "Αη Γιάννης",
+      "lat": 38.8430255,
+      "lon": 20.6835328,
+      "depth_info": {
+        "depth_5m": 1.2,
+        "depth_10m": 2.6,
+        "beach_type": "Blue Flag certified - safe",
+        "suitable_for": "Families (Blue Flag standards)",
+        "source": "Blue Flag safety assumption",
+        "confidence": "Low - generic estimate",
+        "last_updated": "2025-06-15"
+      },
+      "last_updated": "2025-06-15T12:00:00.000000"
+    },
+    "40.1965104_23.8075003": {
+      "beach_name": "Paralia Karydi",
+      "greek_name": "Παραλια Καρυδι",
+      "lat": 40.1965104,
+      "lon": 23.8075003,
+      "depth_info": {
+        "depth_5m": 1.2,
+        "depth_10m": 2.6,
+        "beach_type": "Blue Flag certified - safe",
+        "suitable_for": "Families (Blue Flag standards)",
+        "source": "Blue Flag safety assumption",
+        "confidence": "Low - generic estimate",
+        "last_updated": "2025-06-15"
+      },
+      "last_updated": "2025-06-15T12:00:00.000000"
+    },
+    "35.3674866_24.4871244": {
+      "beach_name": "Paralia Rethymnou",
+      "greek_name": "Παραλια Ρεθυμνου",
+      "lat": 35.3674866,
+      "lon": 24.4871244,
+      "depth_info": {
+        "depth_5m": 1.2,
+        "depth_10m": 2.6,
+        "beach_type": "Blue Flag certified - safe",
+        "suitable_for": "Families (Blue Flag standards)",
+        "source": "Blue Flag safety assumption",
+        "confidence": "Low - generic estimate",
+        "last_updated": "2025-06-15"
+      },
+      "last_updated": "2025-06-15T12:00:00.000000"
+    },
+    "35.4002872_25.0341001": {
+      "beach_name": "Made/Athina Palace",
+      "greek_name": "Μαδέ/Athina Palace",
+      "lat": 35.4002872,
+      "lon": 25.0341001,
+      "depth_info": {
+        "depth_5m": 1.2,
+        "depth_10m": 2.6,
+        "beach_type": "Blue Flag certified - safe",
+        "suitable_for": "Families (Blue Flag standards)",
+        "source": "Blue Flag safety assumption",
+        "confidence": "Low - generic estimate",
+        "last_updated": "2025-06-15"
+      },
+      "last_updated": "2025-06-15T12:00:00.000000"
+    },
+    "35.3326473_25.2065993": {
+      "beach_name": "Amnisos/Unique Blue Resort",
+      "greek_name": "Αμνισός/Unique Blue Resort",
+      "lat": 35.3326473,
+      "lon": 25.2065993,
+      "depth_info": {
+        "depth_5m": 1.2,
+        "depth_10m": 2.6,
+        "beach_type": "Blue Flag certified - safe",
+        "suitable_for": "Families (Blue Flag standards)",
+        "source": "Blue Flag safety assumption",
+        "confidence": "Low - generic estimate",
+        "last_updated": "2025-06-15"
+      },
+      "last_updated": "2025-06-15T12:00:00.000000"
+    },
+    "35.3059690_25.4204398": {
+      "beach_name": "Drapanos/Nana Golden Beach, Nana Princess",
+      "greek_name": "Δράπανος/Nana Golden Beach, Nana Princess",
+      "lat": 35.3059690,
+      "lon": 25.4204398,
+      "depth_info": {
+        "depth_5m": 1.2,
+        "depth_10m": 2.6,
+        "beach_type": "Blue Flag certified - safe",
+        "suitable_for": "Families (Blue Flag standards)",
+        "source": "Blue Flag safety assumption",
+        "confidence": "Low - generic estimate",
+        "last_updated": "2025-06-15"
+      },
+      "last_updated": "2025-06-15T12:00:00.000000"
+    },
+    "35.3324290_25.2561036": {
+      "beach_name": "Kokkini Chani/Knossos Beach",
+      "greek_name": "Κοκκίνη Χάνι/Knossos Beach",
+      "lat": 35.3324290,
+      "lon": 25.2561036,
+      "depth_info": {
+        "depth_5m": 1.2,
+        "depth_10m": 2.6,
+        "beach_type": "Blue Flag certified - safe",
+        "suitable_for": "Families (Blue Flag standards)",
+        "source": "Blue Flag safety assumption",
+        "confidence": "Low - generic estimate",
+        "last_updated": "2025-06-15"
+      },
+      "last_updated": "2025-06-15T12:00:00.000000"
+    },
+    "35.3270402_25.3844192": {
+      "beach_name": "Sarantari",
+      "greek_name": "Σαραντάρι",
+      "lat": 35.3270402,
+      "lon": 25.3844192,
+      "depth_info": {
+        "depth_5m": 1.2,
+        "depth_10m": 2.6,
+        "beach_type": "Blue Flag certified - safe",
+        "suitable_for": "Families (Blue Flag standards)",
+        "source": "Blue Flag safety assumption",
+        "confidence": "Low - generic estimate",
+        "last_updated": "2025-06-15"
+      },
+      "last_updated": "2025-06-15T12:00:00.000000"
+    },
+    "35.2644770_25.7221567": {
+      "beach_name": "Elounda/Porto Elounda",
+      "greek_name": "Ελούντα /Porto Elounda",
+      "lat": 35.2644770,
+      "lon": 25.7221567,
+      "depth_info": {
+        "depth_5m": 1.2,
+        "depth_10m": 2.6,
+        "beach_type": "Blue Flag certified - safe",
+        "suitable_for": "Families (Blue Flag standards)",
+        "source": "Blue Flag safety assumption",
+        "confidence": "Low - generic estimate",
+        "last_updated": "2025-06-15"
+      },
+      "last_updated": "2025-06-15T12:00:00.000000"
+    },
+    "35.2052863_26.1103531": {
+      "beach_name": "Siteia 1-Galliko/Sitia Beach",
+      "greek_name": "Σητεία 1-Γαλλικό/Sitia Beach",
+      "lat": 35.2052863,
+      "lon": 26.1103531,
+      "depth_info": {
+        "depth_5m": 1.2,
+        "depth_10m": 2.6,
+        "beach_type": "Blue Flag certified - safe",
+        "suitable_for": "Families (Blue Flag standards)",
+        "source": "Blue Flag safety assumption",
+        "confidence": "Low - generic estimate",
+        "last_updated": "2025-06-15"
+      },
+      "last_updated": "2025-06-15T12:00:00.000000"
+    },
+    "35.0052727_25.8195815": {
+      "beach_name": "Koutsounari 2",
+      "greek_name": "Κουτσουνάρι 2",
+      "lat": 35.0052727,
+      "lon": 25.8195815,
+      "depth_info": {
+        "depth_5m": 1.2,
+        "depth_10m": 2.6,
+        "beach_type": "Blue Flag certified - safe",
+        "suitable_for": "Families (Blue Flag standards)",
+        "source": "Blue Flag safety assumption",
+        "confidence": "Low - generic estimate",
+        "last_updated": "2025-06-15"
+      },
+      "last_updated": "2025-06-15T12:00:00.000000"
+    },
+    "36.1089359_28.0672565": {
+      "beach_name": "Vlicha/Lindos Grand Resort",
+      "greek_name": "Βλήχα/Lindos Grand Resort",
+      "lat": 36.1089359,
+      "lon": 28.0672565,
+      "depth_info": {
+        "depth_5m": 1.2,
+        "depth_10m": 2.6,
+        "beach_type": "Blue Flag certified - safe",
+        "suitable_for": "Families (Blue Flag standards)",
+        "source": "Blue Flag safety assumption",
+        "confidence": "Low - generic estimate",
+        "last_updated": "2025-06-15"
+      },
+      "last_updated": "2025-06-15T12:00:00.000000"
+    },
+    "36.2503353_28.1679843": {
+      "beach_name": "Kolympia A-Limanaki/Atlantica Imperial",
+      "greek_name": "Κολύμπια Α-Λιμανάκι/Atlantica Imperial",
+      "lat": 36.2503353,
+      "lon": 28.1679843,
+      "depth_info": {
+        "depth_5m": 1.2,
+        "depth_10m": 2.6,
+        "beach_type": "Blue Flag certified - safe",
+        "suitable_for": "Families (Blue Flag standards)",
+        "source": "Blue Flag safety assumption",
+        "confidence": "Low - generic estimate",
+        "last_updated": "2025-06-15"
+      },
+      "last_updated": "2025-06-15T12:00:00.000000"
+    },
+    "36.3337625_28.2083174": {
+      "beach_name": "Faliraki 2/Amada Colossos",
+      "greek_name": "Φαληράκι 2/Amada Colossos",
+      "lat": 36.3337625,
+      "lon": 28.2083174,
+      "depth_info": {
+        "depth_5m": 1.2,
+        "depth_10m": 2.6,
+        "beach_type": "Blue Flag certified - safe",
+        "suitable_for": "Families (Blue Flag standards)",
+        "source": "Blue Flag safety assumption",
+        "confidence": "Low - generic estimate",
+        "last_updated": "2025-06-15"
+      },
+      "last_updated": "2025-06-15T12:00:00.000000"
+    },
     "36.9706_21.6847": {
       "beach_name": "Voidokilia Beach",
       "greek_name": "Βοϊδοκοιλιά",
