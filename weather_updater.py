@@ -187,35 +187,90 @@ def commit_changes_to_github():
 
 def update_weather_cache():
     """Load beaches and update weather for all of them"""
-    # MODIFIED: Use GitHub Actions compatible file paths
-    save_dir = os.path.dirname(os.path.abspath(__file__))  # Use current directory
+    # Load beach data
+    save_dir = os.path.join(os.path.expanduser("~"), "MyAPIs", "Blue_Flags_Greece_API", "flag_backend")
+    csv_path = os.path.join(save_dir, "blueflag_greece_scraped.csv")
     
-    # Try multiple possible CSV locations
-    csv_files = [
-        os.path.join(save_dir, "blueflag_greece_scraped.csv"),
-        "blueflag_greece_scraped.csv",  # Current directory
-        "./blueflag_greece_scraped.csv"  # Explicit current directory
-    ]
-    
-    csv_path = None
-    for path in csv_files:
-        if os.path.exists(path):
-            csv_path = path
-            break
-    
-    if not csv_path:
-        logging.error("Beach data CSV not found in any expected location")
-        logging.error(f"Searched in: {csv_files}")
+    if not os.path.exists(csv_path):
+        logging.error(f"Beach data not found at {csv_path}")
         return
     
-    logging.info(f"Using CSV file: {csv_path}")
+    # Load beaches - use regex to extract coordinates from anywhere in each row
+    import re
     
-    # Load beaches
-    df = pd.read_csv(csv_path)
-    df = df.dropna(subset=['Latitude', 'Longitude'])
+    df = pd.read_csv(csv_path, header=0)
+    
+    # Extract coordinates using more flexible regex patterns
+    # Allow for more decimal place variations and potential formatting differences
+    lat_pattern = r'(?:3[4-9]|4[0-2])\.\d{4,8}'  # 34-42 with 4-8 decimal places
+    lon_pattern = r'(?:1[9]|2[0-9])\.\d{4,8}'    # 19-29 with 4-8 decimal places
+    
+    # Extract coordinates using very broad patterns - catch any decimal numbers
+    
+    # Find all decimal numbers in each row (even shorter ones)
+    df['row_string'] = df.astype(str).apply(lambda x: ','.join(x), axis=1)
+    
+    # Look for decimal numbers with 1+ decimal places (most flexible)
+    all_numbers_pattern = r'\d{1,2}\.\d{1,8}'
+    
+    def extract_coordinates(row_text):
+        import re
+        numbers = re.findall(all_numbers_pattern, row_text)
+        numbers = [float(n) for n in numbers if '.' in n]
+        
+        lat, lon = None, None
+        
+        # More generous Greek coordinate ranges
+        # Latitude: 33-43 (slightly expanded)
+        # Longitude: 18-30 (slightly expanded) 
+        for num in numbers:
+            if 33.0 <= num <= 43.0 and lat is None:
+                lat = num
+            elif 18.0 <= num <= 30.0 and lon is None:
+                lon = num
+                
+        # If we didn't find both, try any reasonable coordinate-like numbers
+        if lat is None or lon is None:
+            for num in numbers:
+                # Fallback: any number that looks like coordinates
+                if 30.0 <= num <= 45.0 and lat is None:  # Very broad latitude
+                    lat = num
+                elif 15.0 <= num <= 35.0 and lon is None:  # Very broad longitude
+                    lon = num
+        
+        return lat, lon
+    
+    # Apply coordinate extraction
+    coords = df['row_string'].apply(extract_coordinates)
+    df['Latitude'] = coords.apply(lambda x: x[0])
+    df['Longitude'] = coords.apply(lambda x: x[1])
+    
+    # Clean up temporary column
+    df = df.drop('row_string', axis=1)
+    
+    # Ensure we have Name column (first column)
+    cols = list(df.columns)
+    if 'Name' not in df.columns and len(cols) > 0:
+        df = df.rename(columns={cols[0]: 'Name'})
+    
+    # Coordinates are already cleaned by regex extraction above
+    
+    logging.info(f"Loaded {len(df)} beaches from CSV")
+    
+    # Log beaches with missing coordinates (after cleaning)
+    missing_coords = df[df['Latitude'].isna() | df['Longitude'].isna()]
+    if len(missing_coords) > 0:
+        logging.warning(f"Found {len(missing_coords)} beaches with missing/invalid coordinates:")
+        for _, beach in missing_coords.iterrows():
+            lat_val = beach.get('Latitude', 'N/A')
+            lon_val = beach.get('Longitude', 'N/A') 
+            logging.warning(f"  - {beach['Name']} (Lat: {lat_val}, Lon: {lon_val})")
+    
+    # Filter out beaches without valid coordinates
+    df_with_coords = df.dropna(subset=['Latitude', 'Longitude'])
     
     # Get unique locations (some beaches might share coordinates)
-    unique_locations = df[['Name', 'Latitude', 'Longitude']].drop_duplicates(subset=['Latitude', 'Longitude'])
+    unique_locations = df_with_coords[['Name', 'Latitude', 'Longitude']].drop_duplicates(subset=['Latitude', 'Longitude'])
     total_locations = len(unique_locations)
     
     logging.info(f"Starting weather update for {total_locations} unique beach locations")
@@ -242,7 +297,7 @@ def update_weather_cache():
                 result = future.result()
                 if result:
                     # CRITICAL: Use EXACT same key format as flag.py expects
-                    key = f"{lat}_{lon}"
+                    key = f"{round(lat, 6)}_{round(lon, 6)}"
                     weather_data[key] = result
                     completed += 1
                     if completed % 10 == 0:
@@ -250,18 +305,21 @@ def update_weather_cache():
             except Exception as e:
                 logging.error(f"Error processing {name}: {str(e)}")
     
-    # MODIFIED: Save weather data to repository root
-    cache_path = "weather_cache.json"
+    # Save weather data
+    cache_path = os.path.join(save_dir, "weather_cache.json")
     with open(cache_path, 'w', encoding='utf-8') as f:
         json.dump(weather_data, f, ensure_ascii=False, indent=2)
     
     logging.info(f"Weather cache updated successfully! Saved to {cache_path}")
     logging.info(f"Updated weather for {len(weather_data)} locations")
     
-    # NEW: Commit changes to GitHub if running in GitHub Actions
-    if os.getenv('GITHUB_ACTIONS') == 'true':
-        commit_changes_to_github()
-
+    # Summary report
+    total_beaches = len(df)
+    processed_beaches = len(df_with_coords)
+    missing_beaches = len(missing_coords)
+    
+    logging.info(f"SUMMARY: {processed_beaches}/{total_beaches} beaches processed, {missing_beaches} skipped due to missing coordinates")
+    
 def continuous_update(interval_minutes=30):
     """Continuously update weather data at specified interval"""
     logging.info(f"Starting continuous weather updates every {interval_minutes} minutes")
