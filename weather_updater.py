@@ -281,7 +281,7 @@ def update_weather_cache():
     # THEN: Fetch weather data in parallel, passing the sea temp data
     weather_data = {}
     
-with ThreadPoolExecutor(max_workers=10) as executor:
+    with ThreadPoolExecutor(max_workers=10) as executor:
         # Submit all tasks WITH the sea temperature data
         future_to_beach = {
             executor.submit(get_weather_data, row['Latitude'], row['Longitude'], row['Name'], sea_temp_data): 
