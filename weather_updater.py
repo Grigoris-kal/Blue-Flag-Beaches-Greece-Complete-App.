@@ -281,7 +281,7 @@ def update_weather_cache():
     # THEN: Fetch weather data in parallel, passing the sea temp data
     weather_data = {}
     
-    with ThreadPoolExecutor(max_workers=10) as executor:
+with ThreadPoolExecutor(max_workers=10) as executor:
         # Submit all tasks WITH the sea temperature data
         future_to_beach = {
             executor.submit(get_weather_data, row['Latitude'], row['Longitude'], row['Name'], sea_temp_data): 
@@ -289,29 +289,28 @@ def update_weather_cache():
             for _, row in unique_locations.iterrows()
         }
         
-        # Process completed tasks# Process completed tasks
-completed = 0
-for future in as_completed(future_to_beach):
-    lat, lon, name = future_to_beach[future]
-    try:
-        result = future.result()
-        if result:
-            # CRITICAL: Generate multiple key formats to match mobile app's flexible matching
-            # Remove this line: lat, lon = row['Latitude'], row['Longitude']
-            
-            # Generate keys for different decimal precisions (7, 6, 5, 4, 3)
-            for decimals in [7, 6, 5, 4, 3]:
-                key = f"{round(lat, decimals)}_{round(lon, decimals)}"
-                if key not in weather_data:  # Avoid overwriting
-                    weather_data[key] = result
-            
-            completed += 1
-            if completed % 10 == 0:
-                logging.info(f"Progress: {completed}/{total_locations} beaches updated")
+        # Process completed tasks
+        completed = 0
+        for future in as_completed(future_to_beach):
+            lat, lon, name = future_to_beach[future]
+            try:
+                result = future.result()
+                if result:
+                    # CRITICAL: Generate multiple key formats to match mobile app's flexible matching
+                    
+                    # Generate keys for different decimal precisions (7, 6, 5, 4, 3)
+                    for decimals in [7, 6, 5, 4, 3]:
+                        key = f"{round(lat, decimals)}_{round(lon, decimals)}"
+                        if key not in weather_data:  # Avoid overwriting
+                            weather_data[key] = result
+                    
+                    completed += 1
+                    if completed % 10 == 0:
+                        logging.info(f"Progress: {completed}/{total_locations} beaches updated")
             except Exception as e:
                 logging.error(f"Error processing {name}: {str(e)}")
     
-    # Save weather data
+    # Save weather data (this should be OUTSIDE the ThreadPoolExecutor block)
     cache_path = os.path.join(save_dir, "weather_cache.json")
     with open(cache_path, 'w', encoding='utf-8') as f:
         json.dump(weather_data, f, ensure_ascii=False, indent=2)
@@ -324,8 +323,7 @@ for future in as_completed(future_to_beach):
     processed_beaches = len(df_with_coords)
     missing_beaches = len(missing_coords)
     
-    logging.info(f"SUMMARY: {processed_beaches}/{total_beaches} beaches processed, {missing_beaches} skipped due to missing coordinates")
-    
+    logging.info(f"SUMMARY: {processed_beaches}/{total_beaches} beaches processed, {missing_beaches} skipped due to missing coordinates")    
 def continuous_update(interval_minutes=30):
     """Continuously update weather data at specified interval"""
     logging.info(f"Starting continuous weather updates every {interval_minutes} minutes")
