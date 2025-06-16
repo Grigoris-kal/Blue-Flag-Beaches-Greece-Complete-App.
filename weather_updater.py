@@ -187,8 +187,8 @@ def commit_changes_to_github():
 
 def update_weather_cache():
     """Load beaches and update weather for all of them"""
-    # Load beach data
-    save_dir = os.path.join(os.path.expanduser("~"), "Blue-Flag-Beaches-Greece-Complete-App")
+    # Load beach data - GitHub Actions environment
+    save_dir = os.getcwd()  # Current working directory in GitHub Actions
     csv_path = os.path.join(save_dir, "blueflag_greece_scraped.csv")
     
     if not os.path.exists(csv_path):
@@ -200,14 +200,7 @@ def update_weather_cache():
     
     df = pd.read_csv(csv_path, header=0)
     
-    # Extract coordinates using more flexible regex patterns
-    # Allow for more decimal place variations and potential formatting differences
-    lat_pattern = r'(?:3[4-9]|4[0-2])\.\d{4,8}'  # 34-42 with 4-8 decimal places
-    lon_pattern = r'(?:1[9]|2[0-9])\.\d{4,8}'    # 19-29 with 4-8 decimal places
-    
-    # Extract coordinates using very broad patterns - catch any decimal numbers
-    
-    # Find all decimal numbers in each row (even shorter ones)
+    # Find all decimal numbers in each row
     df['row_string'] = df.astype(str).apply(lambda x: ','.join(x), axis=1)
     
     # Look for decimal numbers with 1+ decimal places (most flexible)
@@ -220,22 +213,20 @@ def update_weather_cache():
         
         lat, lon = None, None
         
-        # More generous Greek coordinate ranges
-        # Latitude: 33-43 (slightly expanded)
-        # Longitude: 18-30 (slightly expanded) 
+        # Greek coordinate ranges
+        # Latitude: 33-43, Longitude: 18-30
         for num in numbers:
             if 33.0 <= num <= 43.0 and lat is None:
                 lat = num
             elif 18.0 <= num <= 30.0 and lon is None:
                 lon = num
                 
-        # If we didn't find both, try any reasonable coordinate-like numbers
+        # Fallback for edge cases
         if lat is None or lon is None:
             for num in numbers:
-                # Fallback: any number that looks like coordinates
-                if 30.0 <= num <= 45.0 and lat is None:  # Very broad latitude
+                if 30.0 <= num <= 45.0 and lat is None:
                     lat = num
-                elif 15.0 <= num <= 35.0 and lon is None:  # Very broad longitude
+                elif 15.0 <= num <= 35.0 and lon is None:
                     lon = num
         
         return lat, lon
@@ -253,11 +244,9 @@ def update_weather_cache():
     if 'Name' not in df.columns and len(cols) > 0:
         df = df.rename(columns={cols[0]: 'Name'})
     
-    # Coordinates are already cleaned by regex extraction above
-    
     logging.info(f"Loaded {len(df)} beaches from CSV")
     
-    # Log beaches with missing coordinates (after cleaning)
+    # Log beaches with missing coordinates
     missing_coords = df[df['Latitude'].isna() | df['Longitude'].isna()]
     if len(missing_coords) > 0:
         logging.warning(f"Found {len(missing_coords)} beaches with missing/invalid coordinates:")
@@ -269,20 +258,20 @@ def update_weather_cache():
     # Filter out beaches without valid coordinates
     df_with_coords = df.dropna(subset=['Latitude', 'Longitude'])
     
-    # Get unique locations (some beaches might share coordinates)
+    # Get unique locations
     unique_locations = df_with_coords[['Name', 'Latitude', 'Longitude']].drop_duplicates(subset=['Latitude', 'Longitude'])
     total_locations = len(unique_locations)
     
     logging.info(f"Starting weather update for {total_locations} unique beach locations")
     
-    # FIRST: Fetch sea temperature for ALL of Greece (1 API call)
+    # Fetch sea temperature for Greece
     sea_temp_data = fetch_greece_sea_temperature()
     
-    # THEN: Fetch weather data in parallel, passing the sea temp data
+    # Fetch weather data in parallel
     weather_data = {}
     
     with ThreadPoolExecutor(max_workers=10) as executor:
-        # Submit all tasks WITH the sea temperature data
+        # Submit all tasks
         future_to_beach = {
             executor.submit(get_weather_data, row['Latitude'], row['Longitude'], row['Name'], sea_temp_data): 
             (row['Latitude'], row['Longitude'], row['Name']) 
@@ -296,12 +285,10 @@ def update_weather_cache():
             try:
                 result = future.result()
                 if result:
-                    # CRITICAL: Generate multiple key formats to match mobile app's flexible matching
-                    
-                    # Generate keys for different decimal precisions (7, 6, 5, 4, 3)
+                    # Generate multiple key formats for mobile app compatibility
                     for decimals in [7, 6, 5, 4, 3]:
                         key = f"{round(lat, decimals)}_{round(lon, decimals)}"
-                        if key not in weather_data:  # Avoid overwriting
+                        if key not in weather_data:
                             weather_data[key] = result
                     
                     completed += 1
@@ -310,7 +297,7 @@ def update_weather_cache():
             except Exception as e:
                 logging.error(f"Error processing {name}: {str(e)}")
     
-    # Save weather data (this should be OUTSIDE the ThreadPoolExecutor block)
+    # Save weather data
     cache_path = os.path.join(save_dir, "weather_cache.json")
     with open(cache_path, 'w', encoding='utf-8') as f:
         json.dump(weather_data, f, ensure_ascii=False, indent=2)
@@ -323,7 +310,8 @@ def update_weather_cache():
     processed_beaches = len(df_with_coords)
     missing_beaches = len(missing_coords)
     
-    logging.info(f"SUMMARY: {processed_beaches}/{total_beaches} beaches processed, {missing_beaches} skipped due to missing coordinates")    
+    logging.info(f"SUMMARY: {processed_beaches}/{total_beaches} beaches processed, {missing_beaches} skipped due to missing coordinates")
+    
 def continuous_update(interval_minutes=30):
     """Continuously update weather data at specified interval"""
     logging.info(f"Starting continuous weather updates every {interval_minutes} minutes")
