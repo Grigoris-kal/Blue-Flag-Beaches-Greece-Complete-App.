@@ -97,7 +97,7 @@ def get_weather_data(lat, lon, beach_name, sea_temp_data=None):
         weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,wind_speed_10m,wind_direction_10m&timezone=auto&forecast_days=1"
         marine_url = f"https://marine-api.open-meteo.com/v1/marine?latitude={lat}&longitude={lon}&current=wave_height,wave_direction,wave_period&timezone=auto"
         
-        # Initialize data structure - MATCH flag.py format exactly
+        # Initialize data structure
         weather_info = {
             'beach_name': beach_name,
             'latitude': lat,
@@ -158,32 +158,6 @@ def get_weather_data(lat, lon, beach_name, sea_temp_data=None):
         logging.error(f"Failed to fetch {beach_name}: {str(e)}")
         return None
 
-def commit_changes_to_github():
-    """Commit updated weather cache to GitHub repository"""
-    try:
-        import subprocess
-        
-        # Configure git (GitHub Actions needs this)
-        subprocess.run(['git', 'config', 'user.name', 'GitHub Action'], check=True)
-        subprocess.run(['git', 'config', 'user.email', 'action@github.com'], check=True)
-        
-        # Add the weather cache file
-        subprocess.run(['git', 'add', 'weather_cache.json'], check=True)
-        
-        # Check if there are changes to commit
-        result = subprocess.run(['git', 'diff', '--staged', '--quiet'], capture_output=True)
-        if result.returncode != 0:  # There are changes
-            commit_message = f"Update weather data - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-            subprocess.run(['git', 'commit', '-m', commit_message], check=True)
-            subprocess.run(['git', 'push'], check=True)
-            logging.info("Weather data committed and pushed to GitHub")
-        else:
-            logging.info("No weather data changes to commit")
-            
-    except subprocess.CalledProcessError as e:
-        logging.error(f"Git operation failed: {e}")
-    except Exception as e:
-        logging.error(f"Failed to commit changes: {e}")
 
 def update_weather_cache():
     """Load beaches and update weather for all of them"""
@@ -285,10 +259,11 @@ def update_weather_cache():
             try:
                 result = future.result()
                 if result:
-                    # Generate multiple key formats for mobile app compatibility
+                    # CRITICAL: Generate multiple key formats for mobile app compatibility
+                    # This is the KEY FIX - generate keys with different decimal precisions
                     for decimals in [7, 6, 5, 4, 3]:
                         key = f"{round(lat, decimals)}_{round(lon, decimals)}"
-                        if key not in weather_data:
+                        if key not in weather_data:  # Avoid overwriting
                             weather_data[key] = result
                     
                     completed += 1
@@ -311,7 +286,8 @@ def update_weather_cache():
     missing_beaches = len(missing_coords)
     
     logging.info(f"SUMMARY: {processed_beaches}/{total_beaches} beaches processed, {missing_beaches} skipped due to missing coordinates")
-    
+
+
 def continuous_update(interval_minutes=30):
     """Continuously update weather data at specified interval"""
     logging.info(f"Starting continuous weather updates every {interval_minutes} minutes")
@@ -328,6 +304,7 @@ def continuous_update(interval_minutes=30):
             logging.error(f"Unexpected error: {str(e)}")
             logging.info("Retrying in 5 minutes...")
             time.sleep(300)  # Wait 5 minutes before retry
+
 
 if __name__ == "__main__":
     import argparse
