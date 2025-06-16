@@ -289,19 +289,25 @@ def update_weather_cache():
             for _, row in unique_locations.iterrows()
         }
         
-        # Process completed tasks
-        completed = 0
-        for future in as_completed(future_to_beach):
-            lat, lon, name = future_to_beach[future]
-            try:
-                result = future.result()
-                if result:
-                    # CRITICAL: Use EXACT same key format as flag.py expects
-                    key = f"{round(lat, 6)}_{round(lon, 6)}"
+        # Process completed tasks# Process completed tasks
+completed = 0
+for future in as_completed(future_to_beach):
+    lat, lon, name = future_to_beach[future]
+    try:
+        result = future.result()
+        if result:
+            # CRITICAL: Generate multiple key formats to match mobile app's flexible matching
+            # Remove this line: lat, lon = row['Latitude'], row['Longitude']
+            
+            # Generate keys for different decimal precisions (7, 6, 5, 4, 3)
+            for decimals in [7, 6, 5, 4, 3]:
+                key = f"{round(lat, decimals)}_{round(lon, decimals)}"
+                if key not in weather_data:  # Avoid overwriting
                     weather_data[key] = result
-                    completed += 1
-                    if completed % 10 == 0:
-                        logging.info(f"Progress: {completed}/{total_locations} beaches updated")
+            
+            completed += 1
+            if completed % 10 == 0:
+                logging.info(f"Progress: {completed}/{total_locations} beaches updated")
             except Exception as e:
                 logging.error(f"Error processing {name}: {str(e)}")
     
