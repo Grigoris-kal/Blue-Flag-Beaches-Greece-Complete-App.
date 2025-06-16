@@ -188,7 +188,7 @@ def commit_changes_to_github():
 def update_weather_cache():
     """Load beaches and update weather for all of them"""
     # Load beach data
-    save_dir = os.path.join(os.path.expanduser("~"), "MyAPIs", "Blue_Flags_Greece_API", "flag_backend")
+    save_dir = os.path.join(os.path.expanduser("~"), "Blue-Flag-Beaches-Greece-Complete-App")
     csv_path = os.path.join(save_dir, "blueflag_greece_scraped.csv")
     
     if not os.path.exists(csv_path):
