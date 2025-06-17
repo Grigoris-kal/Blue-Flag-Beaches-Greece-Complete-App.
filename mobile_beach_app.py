@@ -431,7 +431,7 @@ def main():
             }
             
             .stDeckGlJsonChart > div {
-                height: 55vh !important;  /* Even shorter for more space below */
+                height: 71.5vh !important;  /* Even shorter for more space below */
                 width: 100% !important;
                 margin-bottom: 4rem !important; /* Even more space below map */
             }
