@@ -3,7 +3,7 @@
 Weather Updater for Blue Flag Beaches Greece
 Run this script separately to continuously update weather data
 Usage: python weather_updater.py
-MODIFIED FOR GITHUB ACTIONS
+MODIFIED FOR GITHUB ACTIONS WITH BATCH PROCESSING
 """
 from dotenv import load_dotenv
 # Load environment variables from .env file (only when not in GitHub Actions)
@@ -181,8 +181,25 @@ def get_weather_data(lat, lon, beach_name, sea_temp_data=None):
     return None
 
 
-def update_weather_cache():
-    """Load beaches and update weather for all of them"""
+def load_existing_cache():
+    """Load existing weather cache if it exists"""
+    save_dir = os.getcwd()
+    cache_path = os.path.join(save_dir, "weather_cache.json")
+    
+    if os.path.exists(cache_path):
+        try:
+            with open(cache_path, 'r', encoding='utf-8') as f:
+                existing_data = json.load(f)
+            logging.info(f"Loaded existing cache with {len(existing_data)} entries")
+            return existing_data
+        except Exception as e:
+            logging.warning(f"Could not load existing cache: {str(e)}")
+    
+    return {}
+
+
+def update_weather_cache(batch_size=None, batch_number=None):
+    """Load beaches and update weather for all of them or a specific batch"""
     # Load beach data - GitHub Actions environment
     save_dir = os.getcwd()  # Current working directory in GitHub Actions
     csv_path = os.path.join(save_dir, "blueflag_greece_scraped.csv")
@@ -279,20 +296,42 @@ def update_weather_cache():
     unique_locations = df_with_coords[['Name', 'Latitude', 'Longitude']].drop_duplicates(subset=['Latitude', 'Longitude'])
     total_locations = len(unique_locations)
     
-    logging.info(f"Starting weather update for {total_locations} unique beach locations")
+    # BATCH PROCESSING: Determine which beaches to process
+    if batch_size is not None and batch_number is not None:
+        # Process specific batch
+        start_idx = batch_number * batch_size
+        end_idx = min(start_idx + batch_size, total_locations)
+        
+        # Get this batch
+        locations_to_process = unique_locations.iloc[start_idx:end_idx]
+        
+        logging.info(f"BATCH PROCESSING: Processing batch {batch_number + 1}")
+        logging.info(f"Total locations: {total_locations}, Batch size: {batch_size}")
+        logging.info(f"Processing beaches {start_idx + 1}-{end_idx} ({len(locations_to_process)} beaches)")
+        
+        if locations_to_process.empty:
+            logging.info("No beaches in this batch - all done!")
+            return
+    else:
+        # Process all locations (original behavior)
+        locations_to_process = unique_locations
+        logging.info(f"Starting weather update for {total_locations} unique beach locations")
     
     # Fetch sea temperature for Greece
     sea_temp_data = fetch_greece_sea_temperature()
     
-    # Fetch weather data in parallel
-    weather_data = {}
+    # Load existing cache (ALWAYS load to preserve existing data)
+    existing_weather_data = load_existing_cache()
     
-    with ThreadPoolExecutor(max_workers=8) as executor:  # Reduced from 10 to 3 workers
+    # Fetch weather data in parallel
+    new_weather_data = {}
+    
+    with ThreadPoolExecutor(max_workers=8) as executor:  # Updated to 8 workers
         # Submit all tasks
         future_to_beach = {
             executor.submit(get_weather_data, row['Latitude'], row['Longitude'], row['Name'], sea_temp_data): 
             (row['Latitude'], row['Longitude'], row['Name']) 
-            for _, row in unique_locations.iterrows()
+            for _, row in locations_to_process.iterrows()
         }
         
         # Process completed tasks
@@ -306,29 +345,45 @@ def update_weather_cache():
                     # This is the KEY FIX - generate keys with different decimal precisions
                     for decimals in [7, 6, 5, 4, 3]:
                         key = f"{round(lat, decimals)}_{round(lon, decimals)}"
-                        if key not in weather_data:  # Avoid overwriting
-                            weather_data[key] = result
+                        if key not in new_weather_data:  # Avoid overwriting
+                            new_weather_data[key] = result
                     
                     completed += 1
-                    if completed % 10 == 0:
-                        logging.info(f"Progress: {completed}/{total_locations} beaches updated")
+                    if batch_size is not None:
+                        logging.info(f"Progress: {completed}/{len(locations_to_process)} beaches updated in this batch")
+                    else:
+                        if completed % 10 == 0:
+                            logging.info(f"Progress: {completed}/{total_locations} beaches updated")
             except Exception as e:
                 logging.error(f"Error processing {name}: {str(e)}")
+    
+    # Merge new data with existing cache (ALWAYS merge to preserve all data)
+    existing_weather_data.update(new_weather_data)
+    weather_data = existing_weather_data
     
     # Save weather data
     cache_path = os.path.join(save_dir, "weather_cache.json")
     with open(cache_path, 'w', encoding='utf-8') as f:
         json.dump(weather_data, f, ensure_ascii=False, indent=2)
     
-    logging.info(f"Weather cache updated successfully! Saved to {cache_path}")
-    logging.info(f"Updated weather for {len(weather_data)} locations")
+    if batch_size is not None and batch_number is not None:
+        logging.info(f"Batch {batch_number + 1} completed successfully!")
+        logging.info(f"Updated weather for {len(new_weather_data)} locations in this batch")
+        logging.info(f"Total cache now contains {len(weather_data)} locations")
+    else:
+        logging.info(f"Weather cache updated successfully! Saved to {cache_path}")
+        logging.info(f"Updated weather for {len(weather_data)} locations")
     
     # Summary report
     total_beaches = len(df)
     processed_beaches = len(df_with_coords)
     missing_beaches = len(missing_coords)
     
-    logging.info(f"SUMMARY: {processed_beaches}/{total_beaches} beaches processed, {missing_beaches} skipped due to missing coordinates")
+    if batch_size is not None and batch_number is not None:
+        logging.info(f"BATCH SUMMARY: {len(locations_to_process)} beaches processed in batch {batch_number + 1}")
+        logging.info(f"Overall progress: {min((batch_number + 1) * batch_size, total_locations)}/{total_locations} total locations processed")
+    else:
+        logging.info(f"SUMMARY: {processed_beaches}/{total_beaches} beaches processed, {missing_beaches} skipped due to missing coordinates")
 
 
 def continuous_update(interval_minutes=30):
@@ -355,10 +410,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Weather updater for Blue Flag Beaches')
     parser.add_argument('--once', action='store_true', help='Run once and exit')
     parser.add_argument('--interval', type=int, default=30, help='Update interval in minutes (default: 30)')
+    parser.add_argument('--batch-size', type=int, help='Number of beaches to process per batch (optional)')
+    parser.add_argument('--batch-number', type=int, help='Batch number to process (0-indexed, optional)')
     
     args = parser.parse_args()
     
     if args.once:
-        update_weather_cache()
+        update_weather_cache(batch_size=args.batch_size, batch_number=args.batch_number)
     else:
         continuous_update(args.interval)
