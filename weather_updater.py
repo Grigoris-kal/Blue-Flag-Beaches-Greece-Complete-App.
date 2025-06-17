@@ -174,44 +174,78 @@ def update_weather_cache():
     
     df = pd.read_csv(csv_path, header=0)
     
-    # Find all decimal numbers in each row
-    df['row_string'] = df.astype(str).apply(lambda x: ','.join(x), axis=1)
-    
-    # Look for decimal numbers with 1+ decimal places (most flexible)
-    all_numbers_pattern = r'\d{1,2}\.\d{1,8}'
-    
-    def extract_coordinates(row_text):
-        import re
-        numbers = re.findall(all_numbers_pattern, row_text)
-        numbers = [float(n) for n in numbers if '.' in n]
+    # Clean the data first - handle actual CSV columns properly
+    # Clean latitude and longitude columns if they exist and have data
+    if 'Latitude' in df.columns and 'Longitude' in df.columns:
+        # Try to use existing Latitude/Longitude columns first
+        df['Latitude'] = pd.to_numeric(df['Latitude'], errors='coerce')
+        df['Longitude'] = pd.to_numeric(df['Longitude'], errors='coerce')
         
-        lat, lon = None, None
+        # Log how many we found from direct columns
+        direct_coords = df.dropna(subset=['Latitude', 'Longitude'])
+        logging.info(f"Found {len(direct_coords)} beaches with direct Lat/Lon columns")
+    
+    # For beaches still missing coordinates, try regex extraction
+    missing_coords_mask = df['Latitude'].isna() | df['Longitude'].isna()
+    if missing_coords_mask.sum() > 0:
+        logging.info(f"Attempting regex extraction for {missing_coords_mask.sum()} beaches with missing coordinates")
         
-        # Greek coordinate ranges
-        # Latitude: 33-43, Longitude: 18-30
-        for num in numbers:
-            if 33.0 <= num <= 43.0 and lat is None:
-                lat = num
-            elif 18.0 <= num <= 30.0 and lon is None:
-                lon = num
-                
-        # Fallback for edge cases
-        if lat is None or lon is None:
-            for num in numbers:
-                if 30.0 <= num <= 45.0 and lat is None:
+        # Create row string for regex extraction
+        df_missing = df[missing_coords_mask].copy()
+        df_missing['row_string'] = df_missing.astype(str).apply(lambda x: ','.join(x), axis=1)
+        
+        # More flexible regex patterns - try multiple patterns
+        patterns = [
+            r'\d{2}\.\d{4,8}',  # 37.1234567
+            r'\d{2}\.\d{1,3}',  # 37.123
+            r'[3-4]\d\.\d+',    # Latitude specific
+            r'[1-2]\d\.\d+'     # Longitude specific
+        ]
+        
+        def extract_coordinates_regex(row_text):
+            import re
+            all_numbers = []
+            
+            # Try all patterns
+            for pattern in patterns:
+                matches = re.findall(pattern, row_text)
+                all_numbers.extend([float(m) for m in matches])
+            
+            # Remove duplicates and sort
+            all_numbers = list(set(all_numbers))
+            
+            lat, lon = None, None
+            
+            # Greek coordinate ranges - be more generous
+            for num in all_numbers:
+                if 34.0 <= num <= 42.0 and lat is None:  # Latitude
                     lat = num
-                elif 15.0 <= num <= 35.0 and lon is None:
+                elif 19.0 <= num <= 29.0 and lon is None:  # Longitude
                     lon = num
+            
+            # Fallback with broader ranges
+            if lat is None or lon is None:
+                for num in all_numbers:
+                    if 30.0 <= num <= 45.0 and lat is None:
+                        lat = num
+                    elif 15.0 <= num <= 35.0 and lon is None:
+                        lon = num
+            
+            return lat, lon
         
-        return lat, lon
+        # Apply regex extraction to missing coordinates
+        extracted_coords = df_missing['row_string'].apply(extract_coordinates_regex)
+        
+        # Update the main dataframe
+        for idx, (lat, lon) in zip(df_missing.index, extracted_coords):
+            if lat is not None and pd.isna(df.loc[idx, 'Latitude']):
+                df.loc[idx, 'Latitude'] = lat
+            if lon is not None and pd.isna(df.loc[idx, 'Longitude']):
+                df.loc[idx, 'Longitude'] = lon
     
-    # Apply coordinate extraction
-    coords = df['row_string'].apply(extract_coordinates)
-    df['Latitude'] = coords.apply(lambda x: x[0])
-    df['Longitude'] = coords.apply(lambda x: x[1])
-    
-    # Clean up temporary column
-    df = df.drop('row_string', axis=1)
+    # Clean up temporary column if it exists
+    if 'row_string' in df.columns:
+        df = df.drop('row_string', axis=1)
     
     # Ensure we have Name column (first column)
     cols = list(df.columns)
