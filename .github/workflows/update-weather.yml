@@ -4,8 +4,9 @@ permissions:
   
 on:
   schedule:
-    - cron: '*/30 * * * *'  # Every 30 minutes (fixed syntax)
+    - cron: '*/30 * * * *'  # Every 30 minutes
   workflow_dispatch:  # Manual trigger
+  
 jobs:
   update-weather:
     runs-on: ubuntu-latest
@@ -37,14 +38,69 @@ jobs:
           GITHUB_ACTIONS: true
           JAWG_TOKEN: ${{ secrets.JAWG_TOKEN }}
       
+      - name: Upload weather cache artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: weather-cache-batch-${{ matrix.batch }}
+          path: weather_cache.json
+          retention-days: 1
+
+  combine-and-commit:
+    needs: update-weather
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Download all weather cache artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: weather-cache-batch-*
+          merge-multiple: true
+      
+      - name: Combine weather caches
+        run: |
+          python -c "
+          import json
+          import glob
+          import os
+          
+          combined_data = {}
+          
+          # Load and merge all batch results
+          for cache_file in glob.glob('weather_cache.json*'):
+              if os.path.getsize(cache_file) > 0:
+                  try:
+                      with open(cache_file, 'r', encoding='utf-8') as f:
+                          batch_data = json.load(f)
+                      combined_data.update(batch_data)
+                      print(f'Loaded {len(batch_data)} entries from {cache_file}')
+                  except Exception as e:
+                      print(f'Error loading {cache_file}: {e}')
+          
+          # Save combined result
+          with open('weather_cache.json', 'w', encoding='utf-8') as f:
+              json.dump(combined_data, f, ensure_ascii=False, indent=2)
+          
+          print(f'Combined cache contains {len(combined_data)} total entries')
+          "
+      
       - name: Commit and push changes
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add weather_cache.json
           if git diff --staged --quiet; then
-            echo "No changes to commit for batch ${{ matrix.batch }}"
+            echo "No changes to commit"
           else
-            git commit -m "Update weather cache - Batch ${{ matrix.batch }} - $(date)"
+            git commit -m "Update weather cache - Combined batches - $(date)"
             git push
           fi
