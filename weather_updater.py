@@ -91,72 +91,94 @@ def fetch_greece_sea_temperature():
 
 
 def get_weather_data(lat, lon, beach_name, sea_temp_data=None):
-    """Get weather and marine data from APIs"""
-    try:
-        # Weather API URLs
-        weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,wind_speed_10m,wind_direction_10m&timezone=auto&forecast_days=1"
-        marine_url = f"https://marine-api.open-meteo.com/v1/marine?latitude={lat}&longitude={lon}&current=wave_height,wave_direction,wave_period&timezone=auto"
-        
-        # Initialize data structure
-        weather_info = {
-            'beach_name': beach_name,
-            'latitude': lat,
-            'longitude': lon,
-            'air_temp': 'N/A',
-            'wind_speed': 'N/A',
-            'wind_direction': 'N/A',
-            'wave_height': 'N/A',
-            'wave_direction': 'N/A',
-            'wave_period': 'N/A',
-            'sea_temp': 'N/A',
-            'last_updated': datetime.now().isoformat()
-        }
-        
-        # 1. Fetch standard weather data
-        response = requests.get(weather_url, timeout=10)
-        if response.status_code == 200:
-            data = response.json()
-            current = data.get('current', {})
-            weather_info['air_temp'] = round(current.get('temperature_2m', 'N/A'), 1) if current.get('temperature_2m') is not None else 'N/A'
-            weather_info['wind_speed'] = round(current.get('wind_speed_10m', 'N/A'), 1) if current.get('wind_speed_10m') is not None else 'N/A'
-            weather_info['wind_direction'] = current.get('wind_direction_10m', 'N/A')
-        
-        # 2. Fetch wave data
-        marine_response = requests.get(marine_url, timeout=10)
-        if marine_response.status_code == 200:
-            marine_data = marine_response.json()
-            current_marine = marine_data.get('current', {})
-            weather_info['wave_height'] = round(current_marine.get('wave_height', 'N/A'), 1) if current_marine.get('wave_height') is not None else 'N/A'
-            weather_info['wave_direction'] = current_marine.get('wave_direction', 'N/A')
-            weather_info['wave_period'] = round(current_marine.get('wave_period', 'N/A'), 1) if current_marine.get('wave_period') is not None else 'N/A'
-        
-        # 3. Extract sea temperature from the Greece-wide data
-        if sea_temp_data is not None:
-            try:
-                # Find nearest point in NOAA data
-                min_distance = float('inf')
-                nearest_temp = None
+    """Get weather and marine data from APIs with retry logic"""
+    max_retries = 3
+    base_delay = 1  # Start with 1 second delay
+    
+    for attempt in range(max_retries):
+        try:
+            # Add small delay between requests to avoid overwhelming the API
+            if attempt > 0:
+                delay = base_delay * (2 ** attempt)  # Exponential backoff
+                time.sleep(delay)
+                logging.info(f"Retry {attempt + 1} for {beach_name} after {delay}s delay")
+            
+            # Weather API URLs
+            weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,wind_speed_10m,wind_direction_10m&timezone=auto&forecast_days=1"
+            marine_url = f"https://marine-api.open-meteo.com/v1/marine?latitude={lat}&longitude={lon}&current=wave_height,wave_direction,wave_period&timezone=auto"
+            
+            # Initialize data structure
+            weather_info = {
+                'beach_name': beach_name,
+                'latitude': lat,
+                'longitude': lon,
+                'air_temp': 'N/A',
+                'wind_speed': 'N/A',
+                'wind_direction': 'N/A',
+                'wave_height': 'N/A',
+                'wave_direction': 'N/A',
+                'wave_period': 'N/A',
+                'sea_temp': 'N/A',
+                'last_updated': datetime.now().isoformat()
+            }
+            
+            # 1. Fetch standard weather data with longer timeout
+            response = requests.get(weather_url, timeout=20)  # Increased timeout
+            if response.status_code == 200:
+                data = response.json()
+                current = data.get('current', {})
+                weather_info['air_temp'] = round(current.get('temperature_2m', 'N/A'), 1) if current.get('temperature_2m') is not None else 'N/A'
+                weather_info['wind_speed'] = round(current.get('wind_speed_10m', 'N/A'), 1) if current.get('wind_speed_10m') is not None else 'N/A'
+                weather_info['wind_direction'] = current.get('wind_direction_10m', 'N/A')
+            
+            # Small delay between API calls
+            time.sleep(0.5)
+            
+            # 2. Fetch wave data with longer timeout
+            marine_response = requests.get(marine_url, timeout=20)  # Increased timeout
+            if marine_response.status_code == 200:
+                marine_data = marine_response.json()
+                current_marine = marine_data.get('current', {})
+                weather_info['wave_height'] = round(current_marine.get('wave_height', 'N/A'), 1) if current_marine.get('wave_height') is not None else 'N/A'
+                weather_info['wave_direction'] = current_marine.get('wave_direction', 'N/A')
+                weather_info['wave_period'] = round(current_marine.get('wave_period', 'N/A'), 1) if current_marine.get('wave_period') is not None else 'N/A'
+            
+            # 3. Extract sea temperature from the Greece-wide data
+            if sea_temp_data is not None:
+                try:
+                    # Find nearest point in NOAA data
+                    min_distance = float('inf')
+                    nearest_temp = None
 
-                for key, point in sea_temp_data.items():
-                    # Calculate distance (simple approximation)
-                    distance = ((point['lat'] - lat)**2 + (point['lon'] - lon)**2)**0.5
-                    if distance < min_distance:
-                        min_distance = distance
-                        nearest_temp = point['temp']
+                    for key, point in sea_temp_data.items():
+                        # Calculate distance (simple approximation)
+                        distance = ((point['lat'] - lat)**2 + (point['lon'] - lon)**2)**0.5
+                        if distance < min_distance:
+                            min_distance = distance
+                            nearest_temp = point['temp']
 
-                # Only use if within reasonable distance (about 2.0 degrees)
-                if nearest_temp is not None and nearest_temp != "N/A" and min_distance < 2.0:
-                    weather_info['sea_temp'] = nearest_temp
+                    # Only use if within reasonable distance (about 2.0 degrees)
+                    if nearest_temp is not None and nearest_temp != "N/A" and min_distance < 2.0:
+                        weather_info['sea_temp'] = nearest_temp
 
-            except Exception as e:
-                logging.warning(f"Could not extract sea temp for {beach_name}: {str(e)}")
+                except Exception as e:
+                    logging.warning(f"Could not extract sea temp for {beach_name}: {str(e)}")
 
-        logging.info(f"Weather fetched for {beach_name}")
-        return weather_info
+            logging.info(f"Weather fetched for {beach_name}")
+            return weather_info
 
-    except Exception as e:
-        logging.error(f"Failed to fetch {beach_name}: {str(e)}")
-        return None
+        except requests.Timeout:
+            logging.warning(f"Timeout for {beach_name} (attempt {attempt + 1}/{max_retries})")
+            if attempt == max_retries - 1:
+                logging.error(f"Failed to fetch {beach_name} after {max_retries} attempts - timeout")
+                return None
+        except Exception as e:
+            logging.warning(f"Error for {beach_name} (attempt {attempt + 1}/{max_retries}): {str(e)}")
+            if attempt == max_retries - 1:
+                logging.error(f"Failed to fetch {beach_name} after {max_retries} attempts: {str(e)}")
+                return None
+    
+    return None
 
 
 def update_weather_cache():
@@ -265,7 +287,7 @@ def update_weather_cache():
     # Fetch weather data in parallel
     weather_data = {}
     
-    with ThreadPoolExecutor(max_workers=10) as executor:
+    with ThreadPoolExecutor(max_workers=3) as executor:  # Reduced from 10 to 3 workers
         # Submit all tasks
         future_to_beach = {
             executor.submit(get_weather_data, row['Latitude'], row['Longitude'], row['Name'], sea_temp_data): 
