@@ -215,8 +215,11 @@ def update_weather_cache(batch_size=None, batch_number=None):
     
     # Clean the data first - handle actual CSV columns properly
     # Clean latitude and longitude columns if they exist and have data
+
     if 'Latitude' in df.columns and 'Longitude' in df.columns:
-        # Try to use existing Latitude/Longitude columns first
+        # Strip whitespace and convert to numeric
+        df['Latitude'] = df['Latitude'].astype(str).str.strip()
+        df['Longitude'] = df['Longitude'].astype(str).str.strip()
         df['Latitude'] = pd.to_numeric(df['Latitude'], errors='coerce')
         df['Longitude'] = pd.to_numeric(df['Longitude'], errors='coerce')
         
