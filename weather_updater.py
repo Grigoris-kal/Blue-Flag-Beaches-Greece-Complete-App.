@@ -194,47 +194,34 @@ def update_weather_cache():
         df_missing = df[missing_coords_mask].copy()
         df_missing['row_string'] = df_missing.astype(str).apply(lambda x: ','.join(x), axis=1)
         
-        # More flexible regex patterns - try multiple patterns
-        patterns = [
-            r'\d{2}\.\d{4,8}',  # 37.1234567
-            r'\d{2}\.\d{1,3}',  # 37.123
-            r'[3-4]\d\.\d+',    # Latitude specific
-            r'[1-2]\d\.\d+'     # Longitude specific
-        ]
-        
-        def extract_coordinates_regex(row_text):
+        def extract_coordinates_no_filter(row_text):
             import re
-            all_numbers = []
-            
-            # Try all patterns
-            for pattern in patterns:
-                matches = re.findall(pattern, row_text)
-                all_numbers.extend([float(m) for m in matches])
-            
-            # Remove duplicates and sort
-            all_numbers = list(set(all_numbers))
+            # Find ALL decimal numbers - no geographic filtering at all
+            pattern = r'\d+\.\d+'
+            matches = re.findall(pattern, row_text)
+            numbers = [float(m) for m in matches]
             
             lat, lon = None, None
             
-            # Greek coordinate ranges - be more generous
-            for num in all_numbers:
-                if 34.0 <= num <= 42.0 and lat is None:  # Latitude
-                    lat = num
-                elif 19.0 <= num <= 29.0 and lon is None:  # Longitude
-                    lon = num
+            # NO FILTERING - just take first two reasonable decimal numbers
+            # Assume first coordinate-like number is latitude, second is longitude
+            coordinate_candidates = [n for n in numbers if n > 10 and n < 50]  # Very broad range
             
-            # Fallback with broader ranges
-            if lat is None or lon is None:
-                for num in all_numbers:
-                    if 30.0 <= num <= 45.0 and lat is None:
-                        lat = num
-                    elif 15.0 <= num <= 35.0 and lon is None:
-                        lon = num
+            if len(coordinate_candidates) >= 2:
+                lat = coordinate_candidates[0]
+                lon = coordinate_candidates[1]
+            elif len(coordinate_candidates) == 1:
+                # If only one number, try to guess if it's lat or lon based on typical ranges
+                num = coordinate_candidates[0]
+                if 30 <= num <= 45:  # More likely latitude
+                    lat = num
+                elif 15 <= num <= 35:  # More likely longitude  
+                    lon = num
             
             return lat, lon
         
         # Apply regex extraction to missing coordinates
-        extracted_coords = df_missing['row_string'].apply(extract_coordinates_regex)
+        extracted_coords = df_missing['row_string'].apply(extract_coordinates_no_filter)
         
         # Update the main dataframe
         for idx, (lat, lon) in zip(df_missing.index, extracted_coords):
