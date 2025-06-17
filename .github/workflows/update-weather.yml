@@ -33,7 +33,7 @@ jobs:
       
       - name: Run weather updater (Batch ${{ matrix.batch }})
         run: |
-          python weather_updater.py --once --batch-size 45 --batch-number ${{ matrix.batch }}
+          python weather_updater.py --once --batch-size 51 --batch-number ${{ matrix.batch }}
         env:
           GITHUB_ACTIONS: true
           JAWG_TOKEN: ${{ secrets.JAWG_TOKEN }}
