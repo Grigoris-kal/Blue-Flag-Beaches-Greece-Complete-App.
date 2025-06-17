@@ -97,6 +97,10 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
+          
+          # Pull latest changes first to avoid conflicts
+          git pull origin main
+          
           git add weather_cache.json
           if git diff --staged --quiet; then
             echo "No changes to commit"
