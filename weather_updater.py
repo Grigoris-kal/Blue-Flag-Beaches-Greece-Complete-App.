@@ -89,6 +89,29 @@ def fetch_greece_sea_temperature():
         logging.error(f"Failed to fetch Greece sea data: {str(e)}")
         return SEA_TEMP_CACHE['data']  # Return cached data if available
 
+def get_sea_temp_open_meteo(lat, lon, beach_name):
+    """Get sea surface temperature from Open-Meteo Marine API"""
+    try:
+        marine_url = f"https://marine-api.open-meteo.com/v1/marine?latitude={lat}&longitude={lon}&current=sea_surface_temperature&timezone=auto"
+        
+        response = requests.get(marine_url, timeout=15)
+        if response.status_code == 200:
+            data = response.json()
+            
+            # Extract sea surface temperature
+            current = data.get('current', {})
+            sea_temp = current.get('sea_surface_temperature')
+            
+            if sea_temp is not None:
+                logging.info(f"Sea temp for {beach_name}: {sea_temp}°C (Open-Meteo)")
+                return round(sea_temp, 1)
+                
+        logging.warning(f"Open-Meteo Marine API no data for {beach_name}")
+        return 'N/A'
+        
+    except Exception as e:
+        logging.warning(f"Open-Meteo Marine API failed for {beach_name}: {str(e)}")
+        return 'N/A'
 
 def get_weather_data(lat, lon, beach_name, sea_temp_data=None):
     """Get weather and marine data from APIs with retry logic"""
@@ -143,26 +166,34 @@ def get_weather_data(lat, lon, beach_name, sea_temp_data=None):
                 weather_info['wave_direction'] = current_marine.get('wave_direction', 'N/A')
                 weather_info['wave_period'] = round(current_marine.get('wave_period', 'N/A'), 1) if current_marine.get('wave_period') is not None else 'N/A'
             
-            # 3. Extract sea temperature from the Greece-wide data
-            if sea_temp_data is not None:
-                try:
-                    # Find nearest point in NOAA data
+            # 3. Extract sea temperature - NOAA first, then Open-Meteo fallback
+            try:
+                # Try NOAA first (existing logic)
+                sea_temp = 'N/A'
+                if sea_temp_data is not None:
                     min_distance = float('inf')
                     nearest_temp = None
 
                     for key, point in sea_temp_data.items():
-                        # Calculate distance (simple approximation)
                         distance = ((point['lat'] - lat)**2 + (point['lon'] - lon)**2)**0.5
                         if distance < min_distance:
                             min_distance = distance
                             nearest_temp = point['temp']
 
-                    # Only use if within reasonable distance (about 2.0 degrees)
+                    # Use NOAA if within reasonable distance
                     if nearest_temp is not None and nearest_temp != "N/A" and min_distance < 2.0:
-                        weather_info['sea_temp'] = nearest_temp
+                        sea_temp = nearest_temp
+                        logging.info(f"Sea temp for {beach_name}: {sea_temp}°C (NOAA)")
+                
+                # If NOAA failed, try Open-Meteo Marine API
+                if sea_temp == 'N/A':
+                    sea_temp = get_sea_temp_open_meteo(lat, lon, beach_name)
+                
+                weather_info['sea_temp'] = sea_temp
 
-                except Exception as e:
-                    logging.warning(f"Could not extract sea temp for {beach_name}: {str(e)}")
+            except Exception as e:
+                logging.warning(f"Could not get sea temp for {beach_name}: {str(e)}")
+                weather_info['sea_temp'] = 'N/A'
 
             logging.info(f"Weather fetched for {beach_name}")
             return weather_info
@@ -179,7 +210,6 @@ def get_weather_data(lat, lon, beach_name, sea_temp_data=None):
                 return None
     
     return None
-
 
 def load_existing_cache():
     """Load existing weather cache if it exists"""
