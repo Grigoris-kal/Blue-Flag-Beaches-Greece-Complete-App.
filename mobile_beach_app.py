@@ -136,7 +136,7 @@ def load_resource(resource_name):
 # ======================
 def create_mobile_map(df, weather_cache, depth_data):
     """Create mobile-optimized PyDeck map"""
-    depth_data = load_resource("depth_data") or {}
+    
 
     map_data = []
     for _, row in df.iterrows():
@@ -293,6 +293,7 @@ def main():
     with st.spinner("Loading beach data..."):
         df = load_resource("beach_data")
         weather_cache = load_resource("weather_cache")
+        depth_data = load_resource("depth_data")
         
         
         if df is None:
