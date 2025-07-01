@@ -19,9 +19,6 @@ from io import StringIO
 # CONFIGURATION (Updated URLs)
 # ======================
 
-# Secure way - get token from environment variable
-jawg_token = os.getenv('JAWG_ACCESS_TOKEN')
-
 # Tested and working URLs
 RESOURCES = {
     "beach_data": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App./refs/heads/main/blueflag_greece_scraped.csv",  # ✓ Tested
@@ -140,9 +137,7 @@ def load_resource(resource_name):
 def create_mobile_map(df, weather_cache, depth_data):
     """Create mobile-optimized PyDeck map"""
     
-    # Get JAWG token securely from environment
-    jawg_token = os.getenv('JAWG_ACCESS_TOKEN')
-    
+        
     map_data = []
     for _, row in df.iterrows():
         # Flexible coordinate matching with different accuracy levels
@@ -205,12 +200,12 @@ def create_mobile_map(df, weather_cache, depth_data):
     
     # Set map style based on whether we have JAWG token
     if jawg_token:
-        map_style_url = f'https://tile.jawg.io/jawg-terrain/{{z}}/{{x}}/{{y}}.png?access-token={jawg_token}'
+        _url = f'https://tile.jawg.io/jawg-terrain/{{z}}/{{x}}/{{y}}.png?access-token={jawg_token}'
     else:
-        map_style_url = None  # Fallback to basic style
+        _url = None  # Fallback to basic style
     
     return pdk.Deck(
-        map_style=map_style_url,
+        map_style='https://tile.openstreetmap.org/{z}/{x}/{y}.png',
         initial_view_state=pdk.ViewState(
             latitude=39.0742,   # Center of Greece
             longitude=21.8243,  # Center of Greece  
