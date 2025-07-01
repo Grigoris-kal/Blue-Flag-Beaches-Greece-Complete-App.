@@ -299,6 +299,8 @@ def main():
             df = pd.DataFrame()
         if weather_cache is None:
             weather_cache = {}
+        if depth_data is None:
+            depth_data = {}
 
     # Search functionality with button layout - wider elements
     st.markdown('<div class="search-container">', unsafe_allow_html=True)
