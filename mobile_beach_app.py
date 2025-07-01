@@ -104,7 +104,7 @@ def get_sea_conditions(wave_height):
     except:
         return 'N/A'
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=14400)
 def load_resource(resource_name):
     """Universal loader for all resources"""
     url = RESOURCES.get(resource_name)
@@ -114,7 +114,7 @@ def load_resource(resource_name):
 
     for attempt in range(3):  # 3 retries
         try:
-            response = requests.get(url, timeout=10)
+            response = requests.get(url, timeout=30)
             response.raise_for_status()
             
             if resource_name == 'beach_data':
@@ -128,7 +128,7 @@ def load_resource(resource_name):
             if attempt == 2:  # Final attempt
                 st.error(f"Failed to load {resource_name}\nURL: {url}\nError: {str(e)}")
                 return None
-            time.sleep(1)
+            time.sleep(3)
     return None
 
 # ======================
