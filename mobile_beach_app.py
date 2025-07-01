@@ -196,7 +196,7 @@ def create_mobile_map(df, weather_cache, depth_data):
     )
     
     return pdk.Deck(
-        map_style='mapbox://styles/mapbox/outdoors-v11',  # Use free default style
+        map_style='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',  # Use free default style
         initial_view_state=pdk.ViewState(
             latitude=39.0742,   # Center of Greece
             longitude=21.8243,  # Center of Greece  
