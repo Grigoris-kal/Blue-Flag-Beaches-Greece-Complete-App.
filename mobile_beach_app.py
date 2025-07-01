@@ -134,7 +134,7 @@ def load_resource(resource_name):
 # ======================
 # MAIN APP LOGIC
 # ======================
-def create_mobile_map(df, weather_cache):
+def create_mobile_map(df, weather_cache, depth_data):
     """Create mobile-optimized PyDeck map"""
     depth_data = load_resource("depth_data") or {}
 
@@ -293,15 +293,12 @@ def main():
     with st.spinner("Loading beach data..."):
         df = load_resource("beach_data")
         weather_cache = load_resource("weather_cache")
-        depth_data = load_resource("depth_data")
         
-        if df is None or len(df) == 0:
-            st.error("⚠️ Could not load beach data. Please refresh the page.")
-            return
+        
+        if df is None:
+            df = pd.DataFrame()
         if weather_cache is None:
             weather_cache = {}
-        if depth_data is None:
-            depth_data = {}
 
     # Search functionality with button layout - wider elements
     st.markdown('<div class="search-container">', unsafe_allow_html=True)
@@ -482,7 +479,7 @@ def main():
         </style>
         """, unsafe_allow_html=True)
         
-        st.pydeck_chart(create_mobile_map(df, weather_cache), use_container_width=True)
+        st.pydeck_chart(create_mobile_map(df, weather_cache, depth_data), use_container_width=True)
         
         # Add some space and then show the message at the bottom
         st.markdown("<br>", unsafe_allow_html=True)
