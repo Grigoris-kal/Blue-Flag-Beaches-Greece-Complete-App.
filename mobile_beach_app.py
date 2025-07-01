@@ -198,11 +198,6 @@ def create_mobile_map(df, weather_cache, depth_data):
         pickable=True
     )
     
-    # Set map style based on whether we have JAWG token
-    if jawg_token:
-        _url = f'https://tile.jawg.io/jawg-terrain/{{z}}/{{x}}/{{y}}.png?access-token={jawg_token}'
-    else:
-        _url = None  # Fallback to basic style
     
     return pdk.Deck(
         map_style='https://tile.openstreetmap.org/{z}/{x}/{y}.png',
