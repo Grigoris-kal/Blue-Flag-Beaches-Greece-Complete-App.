@@ -134,46 +134,36 @@ def load_resource(resource_name):
 # ======================
 # MAIN APP LOGIC
 # ======================
-def create_mobile_map(df, weather_cache, depth_data):
+def create_mobile_map(df, weather_cache):
     """Create mobile-optimized PyDeck map"""
-    
-        
+    depth_data = load_resource("depth_data") or {}
+
     map_data = []
     for _, row in df.iterrows():
-        # Flexible coordinate matching with different accuracy levels
-        weather = {}
-        for decimals in [7, 6, 5, 4, 3]:
-            lat_rounded = round(row['Latitude'], decimals)
-            lon_rounded = round(row['Longitude'], decimals)
-            weather_key = f"{lat_rounded}_{lon_rounded}"
-            if weather_key in weather_cache:
-                weather = weather_cache[weather_key]
-                break
-        
+        # Round coordinates to match weather cache format (6 decimal places)
+        lat_rounded = round(row['Latitude'], 6)
+        lon_rounded = round(row['Longitude'], 6)
+        weather_key = f"{lat_rounded}_{lon_rounded}"
+        weather = weather_cache.get(weather_key, {})
+
         tooltip_text = f"📌 GPS: {row['Latitude']:.4f}, {row['Longitude']:.4f}"
-        
-        # Depth data logic - also use flexible matching
+
+        # Depth data logic
+        beach_key = f"{lat_rounded}_{lon_rounded}"
         depth_info = None
-        if 'beaches' in depth_data:
-            for decimals in [7, 6, 5, 4, 3]:
-                lat_rounded = round(row['Latitude'], decimals)
-                lon_rounded = round(row['Longitude'], decimals)
-                beach_key = f"{lat_rounded}_{lon_rounded}"
-                if beach_key in depth_data['beaches']:
-                    depth_info = depth_data['beaches'][beach_key]['depth_info']
-                    break
-        
+        if 'beaches' in depth_data and beach_key in depth_data['beaches']:
+            depth_info = depth_data['beaches'][beach_key]['depth_info']
+
         if depth_info and depth_info.get("depth_5m") not in ["Unknown", "Error"]:
             tooltip_text += f"\n🏊 Depth (5m from shore): {depth_info['depth_5m']}m"
-        
+
         if weather:
             tooltip_text += f"\n🌡️ Air: {weather.get('air_temp', 'N/A')}°C"
             tooltip_text += f"\n🌊 Sea: {weather.get('sea_temp', 'N/A')}°C"
             tooltip_text += f"\n🌊 Waves: {weather.get('wave_height', 'N/A')}m"
             tooltip_text += f"\n💨 Wind: {weather.get('wind_speed', 'N/A')} km/h"
-            tooltip_text += f"\n🧭 Wind Direction: {get_wind_arrow(weather.get('wind_direction', 'N/A'))}"
-            tooltip_text += f"\n🌊 Sea Conditions: {get_sea_conditions(weather.get('wave_height', 'N/A'))}"
-        
+            tooltip_text += f"\n🧭 Wind Direction: {weather.get('wind_direction', 'N/A')}°"
+
         map_data.append({
             'lat': row['Latitude'],
             'lon': row['Longitude'],
@@ -188,7 +178,7 @@ def create_mobile_map(df, weather_cache, depth_data):
                 'anchorY': 150,
             }
         })
-    
+
     layer = pdk.Layer(
         'IconLayer',
         data=map_data,
@@ -197,10 +187,9 @@ def create_mobile_map(df, weather_cache, depth_data):
         get_size=25,
         pickable=True
     )
-    
-    
+
     return pdk.Deck(
-        map_style='https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+        map_style='mapbox://styles/mapbox/outdoors-v11',
         initial_view_state=pdk.ViewState(
             latitude=39.0742,   # Center of Greece
             longitude=21.8243,  # Center of Greece  
@@ -221,7 +210,6 @@ def create_mobile_map(df, weather_cache, depth_data):
             }
         }
     )
-
 def main():
     # Load all resources
     flag_img = load_resource("flag_image")
@@ -494,7 +482,7 @@ def main():
         </style>
         """, unsafe_allow_html=True)
         
-        st.pydeck_chart(create_mobile_map(df, weather_cache, depth_data), use_container_width=True)
+        st.pydeck_chart(create_mobile_map(df, weather_cache), use_container_width=True)
         
         # Add some space and then show the message at the bottom
         st.markdown("<br>", unsafe_allow_html=True)
