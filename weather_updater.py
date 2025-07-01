@@ -43,7 +43,7 @@ def fetch_greece_sea_temperature():
         # Check if we have cached data less than 1 hour old
         if SEA_TEMP_CACHE['data'] is not None and SEA_TEMP_CACHE['last_updated'] is not None:
             time_since_update = datetime.now() - SEA_TEMP_CACHE['last_updated']
-            if time_since_update.total_seconds() < 3600:
+            if time_since_update.total_seconds() < 14400:
                 logging.info("Using cached sea temperature data (less than 1 hour old)")
                 return SEA_TEMP_CACHE['data']
         
@@ -88,30 +88,6 @@ def fetch_greece_sea_temperature():
     except Exception as e:
         logging.error(f"Failed to fetch Greece sea data: {str(e)}")
         return SEA_TEMP_CACHE['data']  # Return cached data if available
-
-def get_sea_temp_open_meteo(lat, lon, beach_name):
-    """Get sea surface temperature from Open-Meteo Marine API"""
-    try:
-        marine_url = f"https://marine-api.open-meteo.com/v1/marine?latitude={lat}&longitude={lon}&current=sea_surface_temperature&timezone=auto"
-        
-        response = requests.get(marine_url, timeout=15)
-        if response.status_code == 200:
-            data = response.json()
-            
-            # Extract sea surface temperature
-            current = data.get('current', {})
-            sea_temp = current.get('sea_surface_temperature')
-            
-            if sea_temp is not None:
-                logging.info(f"Sea temp for {beach_name}: {sea_temp}°C (Open-Meteo)")
-                return round(sea_temp, 1)
-                
-        logging.warning(f"Open-Meteo Marine API no data for {beach_name}")
-        return 'N/A'
-        
-    except Exception as e:
-        logging.warning(f"Open-Meteo Marine API failed for {beach_name}: {str(e)}")
-        return 'N/A'
 
 def get_weather_data(lat, lon, beach_name, sea_temp_data=None):
     """Get weather and marine data from APIs with retry logic"""
@@ -419,7 +395,7 @@ def update_weather_cache(batch_size=None, batch_number=None):
         logging.info(f"SUMMARY: {processed_beaches}/{total_beaches} beaches processed, {missing_beaches} skipped due to missing coordinates")
 
 
-def continuous_update(interval_minutes=30):
+def continuous_update(interval_minutes=240):
     """Continuously update weather data at specified interval"""
     logging.info(f"Starting continuous weather updates every {interval_minutes} minutes")
     
@@ -442,7 +418,7 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description='Weather updater for Blue Flag Beaches')
     parser.add_argument('--once', action='store_true', help='Run once and exit')
-    parser.add_argument('--interval', type=int, default=30, help='Update interval in minutes (default: 30)')
+    parser.add_argument('--interval', type=int, default=240, help='Update interval in minutes (default: 240 = 4 hours)')
     parser.add_argument('--batch-size', type=int, help='Number of beaches to process per batch (optional)')
     parser.add_argument('--batch-number', type=int, help='Batch number to process (0-indexed, optional)')
     
