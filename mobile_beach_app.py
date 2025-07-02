@@ -76,16 +76,31 @@ def transliterate_greek_to_latin(text):
     return ''.join([greek_to_latin.get(char, char) for char in str(text)])
 
 def get_wind_arrow(direction):
-    """Convert wind direction to arrow emoji"""
+    """Convert wind direction to arrow emoji and direction name"""
     if direction == 'N/A' or direction is None:
-        return ''
+        return 'N/A'
     try:
         dir_val = float(direction)
-        arrows = ['↓', '↙', '←', '↖', '↑', '↗', '→', '↘']
+        
+        # Define direction names and arrows
+        directions = [
+            (0, 'North', '↓'),      # Wind FROM North (arrow points down)
+            (45, 'Northeast', '↙'),
+            (90, 'East', '←'),
+            (135, 'Southeast', '↖'),
+            (180, 'South', '↑'),
+            (225, 'Southwest', '↗'),
+            (270, 'West', '→'),
+            (315, 'Northwest', '↘')
+        ]
+        
+        # Find closest direction
         index = int((dir_val + 22.5) / 45) % 8
-        return arrows[index]
+        _, name, arrow = directions[index]
+        
+        return f"{name} {arrow}"
     except:
-        return ''
+        return 'N/A'
 
 def get_sea_conditions(wave_height):
     """Convert wave height to sea conditions"""
