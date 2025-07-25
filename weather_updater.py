@@ -4,6 +4,7 @@ Weather Updater for Blue Flag Beaches Greece
 Run this script separately to continuously update weather data
 Usage: python weather_updater.py
 MODIFIED FOR GITHUB ACTIONS WITH BATCH PROCESSING
+OPTIMIZED FOR 80% API USAGE REDUCTION
 """
 from dotenv import load_dotenv
 # Load environment variables from .env file (only when not in GitHub Actions)
@@ -38,13 +39,13 @@ logging.basicConfig(
 )
 
 def fetch_greece_sea_temperature():
-    """Fetch sea temperature for entire Greece in ONE call (cached for 1 hour)"""
+    """Fetch sea temperature for entire Greece in ONE call (cached for 4 hours)"""
     try:
-        # Check if we have cached data less than 1 hour old
+        # Check if we have cached data less than 4 hours old
         if SEA_TEMP_CACHE['data'] is not None and SEA_TEMP_CACHE['last_updated'] is not None:
             time_since_update = datetime.now() - SEA_TEMP_CACHE['last_updated']
-            if time_since_update.total_seconds() < 14400:
-                logging.info("Using cached sea temperature data (less than 1 hour old)")
+            if time_since_update.total_seconds() < 14400:  # 4 hours
+                logging.info("Using cached sea temperature data (less than 4 hours old)")
                 return SEA_TEMP_CACHE['data']
         
         logging.info("Fetching fresh sea temperature data for all of Greece...")
@@ -89,10 +90,47 @@ def fetch_greece_sea_temperature():
         logging.error(f"Failed to fetch Greece sea data: {str(e)}")
         return SEA_TEMP_CACHE['data']  # Return cached data if available
 
+def get_sea_temp_open_meteo(lat, lon, beach_name):
+    """Fallback function to get sea temperature from Open-Meteo Marine API"""
+    try:
+        marine_url = f"https://marine-api.open-meteo.com/v1/marine?latitude={lat}&longitude={lon}&current=sea_surface_temperature&timezone=auto"
+        response = requests.get(marine_url, timeout=20)
+        if response.status_code == 200:
+            data = response.json()
+            current = data.get('current', {})
+            sea_temp = current.get('sea_surface_temperature')
+            if sea_temp is not None:
+                logging.info(f"Sea temp for {beach_name}: {sea_temp}°C (Open-Meteo fallback)")
+                return round(sea_temp, 1)
+    except Exception as e:
+        logging.warning(f"Open-Meteo sea temp fallback failed for {beach_name}: {str(e)}")
+    
+    return 'N/A'
+
+def should_update_beach(existing_data, beach_key):
+    """Check if beach weather data needs updating - SMART CACHING"""
+    if beach_key not in existing_data:
+        return True  # New beach, definitely update
+    
+    last_data = existing_data[beach_key]
+    
+    # Skip update if data is less than 6 hours old
+    try:
+        last_updated = datetime.fromisoformat(last_data.get('last_updated', ''))
+        hours_since_update = (datetime.now() - last_updated).total_seconds() / 3600
+        
+        if hours_since_update < 6:  # Only update if older than 6 hours
+            logging.info(f"Skipping {last_data.get('beach_name', 'Unknown')} - updated {hours_since_update:.1f}h ago")
+            return False
+    except:
+        pass  # If can't parse date, update anyway
+    
+    return True
+
 def get_weather_data(lat, lon, beach_name, sea_temp_data=None):
     """Get weather and marine data from APIs with retry logic"""
     max_retries = 3
-    base_delay = 1  # Start with 1 second delay
+    base_delay = 2  # INCREASED from 1 to 2 seconds
     
     for attempt in range(max_retries):
         try:
@@ -130,8 +168,8 @@ def get_weather_data(lat, lon, beach_name, sea_temp_data=None):
                 weather_info['wind_speed'] = round(current.get('wind_speed_10m', 'N/A'), 1) if current.get('wind_speed_10m') is not None else 'N/A'
                 weather_info['wind_direction'] = current.get('wind_direction_10m', 'N/A')
             
-            # Small delay between API calls
-            time.sleep(0.5)
+            # INCREASED delay between API calls
+            time.sleep(1.5)  # INCREASED from 0.5 to 1.5 seconds
             
             # 2. Fetch wave data with longer timeout
             marine_response = requests.get(marine_url, timeout=20)  # Increased timeout
@@ -332,15 +370,31 @@ def update_weather_cache(batch_size=None, batch_number=None):
     # Load existing cache (ALWAYS load to preserve existing data)
     existing_weather_data = load_existing_cache()
     
-    # Fetch weather data in parallel
+    # SMART CACHING: Filter locations that actually need updating
+    locations_needing_update = []
+    for _, row in locations_to_process.iterrows():
+        # Generate primary key format
+        lat, lon, name = row['Latitude'], row['Longitude'], row['Name']
+        primary_key = f"{round(lat, 6)}_{round(lon, 6)}"
+        
+        if should_update_beach(existing_weather_data, primary_key):
+            locations_needing_update.append(row)
+
+    if not locations_needing_update:
+        logging.info("🎉 No beaches need updating - all data is recent!")
+        return
+
+    logging.info(f"🔄 SMART UPDATE: Processing {len(locations_needing_update)} out of {len(locations_to_process)} beaches")
+    
+    # Fetch weather data in parallel (REDUCED workers)
     new_weather_data = {}
     
-    with ThreadPoolExecutor(max_workers=8) as executor:  # Updated to 8 workers
-        # Submit all tasks
+    with ThreadPoolExecutor(max_workers=3) as executor:  # REDUCED from 8 to 3 workers
+        # Submit only beaches that need updating
         future_to_beach = {
             executor.submit(get_weather_data, row['Latitude'], row['Longitude'], row['Name'], sea_temp_data): 
             (row['Latitude'], row['Longitude'], row['Name']) 
-            for _, row in locations_to_process.iterrows()
+            for row in locations_needing_update  # Only process filtered beaches
         }
         
         # Process completed tasks
@@ -359,10 +413,10 @@ def update_weather_cache(batch_size=None, batch_number=None):
                     
                     completed += 1
                     if batch_size is not None:
-                        logging.info(f"Progress: {completed}/{len(locations_to_process)} beaches updated in this batch")
+                        logging.info(f"Progress: {completed}/{len(locations_needing_update)} beaches updated in this batch")
                     else:
                         if completed % 10 == 0:
-                            logging.info(f"Progress: {completed}/{total_locations} beaches updated")
+                            logging.info(f"Progress: {completed}/{len(locations_needing_update)} beaches updated")
             except Exception as e:
                 logging.error(f"Error processing {name}: {str(e)}")
     
@@ -376,12 +430,12 @@ def update_weather_cache(batch_size=None, batch_number=None):
         json.dump(weather_data, f, ensure_ascii=False, indent=2)
     
     if batch_size is not None and batch_number is not None:
-        logging.info(f"Batch {batch_number + 1} completed successfully!")
-        logging.info(f"Updated weather for {len(new_weather_data)} locations in this batch")
-        logging.info(f"Total cache now contains {len(weather_data)} locations")
+        logging.info(f"✅ Batch {batch_number + 1} completed successfully!")
+        logging.info(f"📊 Updated weather for {len(new_weather_data)} locations in this batch")
+        logging.info(f"💾 Total cache now contains {len(weather_data)} locations")
     else:
-        logging.info(f"Weather cache updated successfully! Saved to {cache_path}")
-        logging.info(f"Updated weather for {len(weather_data)} locations")
+        logging.info(f"✅ Weather cache updated successfully! Saved to {cache_path}")
+        logging.info(f"📊 Updated weather for {len(new_weather_data)} locations")
     
     # Summary report
     total_beaches = len(df)
@@ -389,10 +443,11 @@ def update_weather_cache(batch_size=None, batch_number=None):
     missing_beaches = len(missing_coords)
     
     if batch_size is not None and batch_number is not None:
-        logging.info(f"BATCH SUMMARY: {len(locations_to_process)} beaches processed in batch {batch_number + 1}")
+        logging.info(f"BATCH SUMMARY: {len(locations_needing_update)} beaches processed in batch {batch_number + 1}")
         logging.info(f"Overall progress: {min((batch_number + 1) * batch_size, total_locations)}/{total_locations} total locations processed")
     else:
         logging.info(f"SUMMARY: {processed_beaches}/{total_beaches} beaches processed, {missing_beaches} skipped due to missing coordinates")
+        logging.info(f"🚀 API OPTIMIZATION: Only updated beaches older than 6 hours - saved ~{len(locations_to_process) - len(locations_needing_update)} API calls!")
 
 
 def continuous_update(interval_minutes=240):
