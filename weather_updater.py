@@ -473,7 +473,7 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description='Weather updater for Blue Flag Beaches')
     parser.add_argument('--once', action='store_true', help='Run once and exit')
-    parser.add_argument('--interval', type=int, default=240, help='Update interval in minutes (default: 240 = 4 hours)')
+    parser.add_argument('--interval', type=int, default=480, help='Update interval in minutes (default: 480 = 8 hours)')
     parser.add_argument('--batch-size', type=int, help='Number of beaches to process per batch (optional)')
     parser.add_argument('--batch-number', type=int, help='Batch number to process (0-indexed, optional)')
     
@@ -483,3 +483,4 @@ if __name__ == "__main__":
         update_weather_cache(batch_size=args.batch_size, batch_number=args.batch_number)
     else:
         continuous_update(args.interval)
+
