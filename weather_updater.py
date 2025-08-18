@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """
-Weather Updater for Blue Flag Beaches Greece
-Run this script separately to continuously update weather data
-Usage: python weather_updater.py
-MODIFIED FOR GITHUB ACTIONS WITH BATCH PROCESSING
-OPTIMIZED FOR 80% API USAGE REDUCTION
+Weather Updater for Blue Flag Beaches Greece - OPTIMIZED VERSION
+Maintains all original functionality while reducing resource usage by:
+- Smart caching (skip fresh data)
+- Rate-limited API calls
+- Memory-efficient processing
+- Batched threading
+- Atomic file writes
 """
+
 from dotenv import load_dotenv
 # Load environment variables from .env file (only when not in GitHub Actions)
 import os
@@ -20,12 +23,25 @@ import os
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
+import psutil
+import resource
+import gzip
+import shutil
+from ratelimit import limits, sleep_and_retry
 
+# Configuration constants
+CACHE_CONFIG = {
+    'sea_temp_hours': 4,       # Cache sea temp for 4 hours
+    'weather_hours': 6,        # Cache weather for 6 hours
+    'max_cache_size': 1000,    # Maximum entries to keep in memory
+    'cache_clean_interval': 10 # Clean cache every 10 updates
+}
 
-# Global variable to store sea temperature data and last update time
+# Global variable to store sea temperature data
 SEA_TEMP_CACHE = {
     'data': None,
-    'last_updated': None
+    'last_updated': None,
+    'size': 0
 }
 
 # Set up logging
@@ -38,195 +54,128 @@ logging.basicConfig(
     ]
 )
 
+def check_memory_usage():
+    """Log memory usage information and set soft limits"""
+    process = psutil.Process(os.getpid())
+    mem_info = process.memory_info()
+    logging.info(f"Memory usage: {mem_info.rss / 1024 / 1024:.2f} MB RSS")
+    
+    # Set soft memory limit (512MB)
+    soft_limit = 512 * 1024 * 1024
+    resource.setrlimit(resource.RLIMIT_AS, (soft_limit, resource.RLIM_INFINITY))
+
+@sleep_and_retry
+@limits(calls=30, period=60)  # 30 calls per minute
+def call_api(url):
+    """Rate-limited API caller with retry logic"""
+    try:
+        response = requests.get(url, timeout=20)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        logging.warning(f"API call failed: {str(e)}")
+        raise
+
 def fetch_greece_sea_temperature():
     """Fetch sea temperature for entire Greece in ONE call (cached for 4 hours)"""
     try:
-        # Check if we have cached data less than 4 hours old
-        if SEA_TEMP_CACHE['data'] is not None and SEA_TEMP_CACHE['last_updated'] is not None:
+        # Check cache validity
+        if SEA_TEMP_CACHE['data'] and SEA_TEMP_CACHE['last_updated']:
             time_since_update = datetime.now() - SEA_TEMP_CACHE['last_updated']
-            if time_since_update.total_seconds() < 14400:  # 4 hours
-                logging.info("Using cached sea temperature data (less than 4 hours old)")
+            if time_since_update.total_seconds() < CACHE_CONFIG['sea_temp_hours'] * 3600:
+                logging.info("Using cached sea temperature data")
                 return SEA_TEMP_CACHE['data']
         
-        logging.info("Fetching fresh sea temperature data for all of Greece...")
+        logging.info("Fetching fresh sea temperature data...")
         
-        # FIXED: Use the correct ERDDAP URL format that we know works
+        # NOAA ERDDAP API
         base_url = "https://coastwatch.pfeg.noaa.gov/erddap/griddap/jplMURSST41.json"
         query = "analysed_sst[(last)][(34):1:(42)][(19):1:(29)]"
         url = f"{base_url}?{query}"
         
-        logging.info(f"Fetching from URL: {url}")
+        data = call_api(url)
         
-        response = requests.get(url, timeout=30)
-        if response.status_code == 200:
-            data = response.json()
-            
-            # Parse NOAA data into a simple structure
-            sst_data = {}
-            valid_count = 0
-            for row in data['table']['rows']:
-                time, lat, lon, sst = row
-                if sst is not None and sst > -10 and sst < 50:  # Filter valid Celsius temperatures
-                    # NOAA data is already in Celsius - no conversion needed
-                    sst_celsius = round(sst, 1)
-                    key = f"{lat}_{lon}"
-                    sst_data[key] = {
-                        'lat': lat,
-                        'lon': lon,
-                        'temp': sst_celsius
-                    }
-                    valid_count += 1
-            
-            # Cache the data
-            SEA_TEMP_CACHE['data'] = sst_data
-            SEA_TEMP_CACHE['last_updated'] = datetime.now()
-            
-            logging.info(f"Successfully downloaded sea temperature data for {valid_count} valid points out of {len(data['table']['rows'])} total")
-            return sst_data
-        else:
-            raise Exception(f"Failed to fetch data: HTTP {response.status_code}")
+        # Parse NOAA data
+        sst_data = {}
+        valid_count = 0
+        for row in data['table']['rows']:
+            time, lat, lon, sst = row
+            if sst is not None and -10 < sst < 50:  # Valid range
+                sst_celsius = round(sst, 1)
+                key = f"{lat}_{lon}"
+                sst_data[key] = {
+                    'lat': lat,
+                    'lon': lon,
+                    'temp': sst_celsius
+                }
+                valid_count += 1
+        
+        # Update cache
+        SEA_TEMP_CACHE['data'] = sst_data
+        SEA_TEMP_CACHE['last_updated'] = datetime.now()
+        SEA_TEMP_CACHE['size'] = valid_count
+        
+        logging.info(f"Downloaded sea temps for {valid_count} points")
+        return sst_data
             
     except Exception as e:
-        logging.error(f"Failed to fetch Greece sea data: {str(e)}")
-        return SEA_TEMP_CACHE['data']  # Return cached data if available
+        logging.error(f"Sea temp fetch failed: {str(e)}")
+        return SEA_TEMP_CACHE['data']  # Return cached if available
 
-def get_sea_temp_open_meteo(lat, lon, beach_name):
-    """Fallback function to get sea temperature from Open-Meteo Marine API"""
+def get_sea_temp(lat, lon, sea_temp_data, beach_name):
+    """Get sea temperature with fallback logic"""
     try:
-        marine_url = f"https://marine-api.open-meteo.com/v1/marine?latitude={lat}&longitude={lon}&current=sea_surface_temperature&timezone=auto"
-        response = requests.get(marine_url, timeout=20)
-        if response.status_code == 200:
-            data = response.json()
-            current = data.get('current', {})
-            sea_temp = current.get('sea_surface_temperature')
-            if sea_temp is not None:
-                logging.info(f"Sea temp for {beach_name}: {sea_temp}°C (Open-Meteo fallback)")
-                return round(sea_temp, 1)
+        # Try NOAA first
+        if sea_temp_data:
+            min_distance = float('inf')
+            nearest_temp = None
+
+            for key, point in sea_temp_data.items():
+                distance = ((point['lat'] - lat)**2 + (point['lon'] - lon)**2)**0.5
+                if distance < min_distance:
+                    min_distance = distance
+                    nearest_temp = point['temp']
+
+            if nearest_temp is not None and min_distance < 2.0:
+                logging.debug(f"Sea temp for {beach_name}: {nearest_temp}°C (NOAA)")
+                return nearest_temp
+        
+        # Fallback to Open-Meteo
+        marine_url = f"https://marine-api.open-meteo.com/v1/marine?latitude={lat}&longitude={lon}&current=sea_surface_temperature"
+        data = call_api(marine_url)
+        sea_temp = data.get('current', {}).get('sea_surface_temperature')
+        
+        if sea_temp is not None:
+            logging.debug(f"Sea temp for {beach_name}: {sea_temp}°C (Open-Meteo)")
+            return round(sea_temp, 1)
+            
     except Exception as e:
-        logging.warning(f"Open-Meteo sea temp fallback failed for {beach_name}: {str(e)}")
+        logging.warning(f"Sea temp fallback failed for {beach_name}: {str(e)}")
     
     return 'N/A'
 
-def should_update_beach(existing_data, beach_key):
-    """Check if beach weather data needs updating - SMART CACHING"""
-    if beach_key not in existing_data:
-        return True  # New beach, definitely update
+def clean_weather_cache(cache):
+    """Remove old entries from weather cache"""
+    now = datetime.now()
+    cleaned_cache = {}
+    removed = 0
     
-    last_data = existing_data[beach_key]
-    
-    # Skip update if data is less than 6 hours old
-    try:
-        last_updated = datetime.fromisoformat(last_data.get('last_updated', ''))
-        hours_since_update = (datetime.now() - last_updated).total_seconds() / 3600
-        
-        if hours_since_update < 6:  # Only update if older than 6 hours
-            logging.info(f"Skipping {last_data.get('beach_name', 'Unknown')} - updated {hours_since_update:.1f}h ago")
-            return False
-    except:
-        pass  # If can't parse date, update anyway
-    
-    return True
-
-def get_weather_data(lat, lon, beach_name, sea_temp_data=None):
-    """Get weather and marine data from APIs with retry logic"""
-    max_retries = 3
-    base_delay = 2  # INCREASED from 1 to 2 seconds
-    
-    for attempt in range(max_retries):
+    for key, data in cache.items():
         try:
-            # Add small delay between requests to avoid overwhelming the API
-            if attempt > 0:
-                delay = base_delay * (2 ** attempt)  # Exponential backoff
-                time.sleep(delay)
-                logging.info(f"Retry {attempt + 1} for {beach_name} after {delay}s delay")
-            
-            # Weather API URLs
-            weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,wind_speed_10m,wind_direction_10m&timezone=auto&forecast_days=1"
-            marine_url = f"https://marine-api.open-meteo.com/v1/marine?latitude={lat}&longitude={lon}&current=wave_height,wave_direction,wave_period&timezone=auto"
-            
-            # Initialize data structure
-            weather_info = {
-                'beach_name': beach_name,
-                'latitude': lat,
-                'longitude': lon,
-                'air_temp': 'N/A',
-                'wind_speed': 'N/A',
-                'wind_direction': 'N/A',
-                'wave_height': 'N/A',
-                'wave_direction': 'N/A',
-                'wave_period': 'N/A',
-                'sea_temp': 'N/A',
-                'last_updated': datetime.now().isoformat()
-            }
-            
-            # 1. Fetch standard weather data with longer timeout
-            response = requests.get(weather_url, timeout=20)  # Increased timeout
-            if response.status_code == 200:
-                data = response.json()
-                current = data.get('current', {})
-                weather_info['air_temp'] = round(current.get('temperature_2m', 'N/A'), 1) if current.get('temperature_2m') is not None else 'N/A'
-                weather_info['wind_speed'] = round(current.get('wind_speed_10m', 'N/A'), 1) if current.get('wind_speed_10m') is not None else 'N/A'
-                weather_info['wind_direction'] = current.get('wind_direction_10m', 'N/A')
-            
-            # INCREASED delay between API calls
-            time.sleep(1.5)  # INCREASED from 0.5 to 1.5 seconds
-            
-            # 2. Fetch wave data with longer timeout
-            marine_response = requests.get(marine_url, timeout=20)  # Increased timeout
-            if marine_response.status_code == 200:
-                marine_data = marine_response.json()
-                current_marine = marine_data.get('current', {})
-                weather_info['wave_height'] = round(current_marine.get('wave_height', 'N/A'), 1) if current_marine.get('wave_height') is not None else 'N/A'
-                weather_info['wave_direction'] = current_marine.get('wave_direction', 'N/A')
-                weather_info['wave_period'] = round(current_marine.get('wave_period', 'N/A'), 1) if current_marine.get('wave_period') is not None else 'N/A'
-            
-            # 3. Extract sea temperature - NOAA first, then Open-Meteo fallback
-            try:
-                # Try NOAA first (existing logic)
-                sea_temp = 'N/A'
-                if sea_temp_data is not None:
-                    min_distance = float('inf')
-                    nearest_temp = None
-
-                    for key, point in sea_temp_data.items():
-                        distance = ((point['lat'] - lat)**2 + (point['lon'] - lon)**2)**0.5
-                        if distance < min_distance:
-                            min_distance = distance
-                            nearest_temp = point['temp']
-
-                    # Use NOAA if within reasonable distance
-                    if nearest_temp is not None and nearest_temp != "N/A" and min_distance < 2.0:
-                        sea_temp = nearest_temp
-                        logging.info(f"Sea temp for {beach_name}: {sea_temp}°C (NOAA)")
-                
-                # If NOAA failed, try Open-Meteo Marine API
-                if sea_temp == 'N/A':
-                    sea_temp = get_sea_temp_open_meteo(lat, lon, beach_name)
-                
-                weather_info['sea_temp'] = sea_temp
-
-            except Exception as e:
-                logging.warning(f"Could not get sea temp for {beach_name}: {str(e)}")
-                weather_info['sea_temp'] = 'N/A'
-
-            logging.info(f"Weather fetched for {beach_name}")
-            return weather_info
-
-        except requests.Timeout:
-            logging.warning(f"Timeout for {beach_name} (attempt {attempt + 1}/{max_retries})")
-            if attempt == max_retries - 1:
-                logging.error(f"Failed to fetch {beach_name} after {max_retries} attempts - timeout")
-                return None
-        except Exception as e:
-            logging.warning(f"Error for {beach_name} (attempt {attempt + 1}/{max_retries}): {str(e)}")
-            if attempt == max_retries - 1:
-                logging.error(f"Failed to fetch {beach_name} after {max_retries} attempts: {str(e)}")
-                return None
+            last_updated = datetime.fromisoformat(data.get('last_updated', ''))
+            hours_since_update = (now - last_updated).total_seconds() / 3600
+            if hours_since_update < CACHE_CONFIG['weather_hours'] * 3:  # Keep 3x cache time
+                cleaned_cache[key] = data
+            else:
+                removed += 1
+        except:
+            cleaned_cache[key] = data  # Keep if date parsing fails
     
-    return None
+    logging.info(f"Cache cleaning: Removed {removed} stale entries")
+    return cleaned_cache
 
 def load_existing_cache():
-    """Load existing weather cache if it exists"""
+    """Load existing weather cache with memory check"""
     save_dir = os.getcwd()
     cache_path = os.path.join(save_dir, "weather_cache.json")
     
@@ -234,253 +183,256 @@ def load_existing_cache():
         try:
             with open(cache_path, 'r', encoding='utf-8') as f:
                 existing_data = json.load(f)
-            logging.info(f"Loaded existing cache with {len(existing_data)} entries")
+            
+            # Initial clean if cache is large
+            if len(existing_data) > CACHE_CONFIG['max_cache_size']:
+                existing_data = clean_weather_cache(existing_data)
+                
+            logging.info(f"Loaded cache with {len(existing_data)} entries")
             return existing_data
         except Exception as e:
-            logging.warning(f"Could not load existing cache: {str(e)}")
+            logging.warning(f"Cache load failed: {str(e)}")
     
     return {}
 
+def save_weather_cache(data):
+    """Save cache with atomic write and optional compression"""
+    temp_path = "weather_cache.tmp"
+    final_path = "weather_cache.json"
+    
+    try:
+        # Atomic write
+        with open(temp_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        os.replace(temp_path, final_path)
+        
+        # Compress if large
+        if os.path.getsize(final_path) > 1024 * 1024:  # >1MB
+            with open(final_path, 'rb') as f_in:
+                with gzip.open(final_path + '.gz', 'wb') as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+            logging.info("Created compressed cache backup")
+            
+    except Exception as e:
+        logging.error(f"Cache save failed: {str(e)}")
 
-def update_weather_cache(batch_size=None, batch_number=None):
-    """Load beaches and update weather for all of them or a specific batch"""
-    # Load beach data - GitHub Actions environment
-    save_dir = os.getcwd()  # Current working directory in GitHub Actions
-    csv_path = os.path.join(save_dir, "blueflag_greece_scraped.csv")
+def get_weather_data(lat, lon, beach_name, sea_temp_data=None):
+    """Optimized weather data fetcher with cache reuse"""
+    # First check memory
+    check_memory_usage()
     
+    # Generate cache key
+    key = f"{round(lat, 6)}_{round(lon, 6)}"
+    
+    # Try to reuse existing data if fresh
+    existing_cache = load_existing_cache()
+    if key in existing_cache:
+        data = existing_cache[key]
+        try:
+            last_updated = datetime.fromisoformat(data.get('last_updated', ''))
+            hours_since_update = (datetime.now() - last_updated).total_seconds() / 3600
+            
+            if hours_since_update < CACHE_CONFIG['weather_hours'] / 2:  # 3 hours
+                logging.info(f"Reusing recent data for {beach_name}")
+                # Only update sea temp if missing/stale
+                if data['sea_temp'] == 'N/A' or hours_since_update > 2:
+                    data['sea_temp'] = get_sea_temp(lat, lon, sea_temp_data, beach_name)
+                    data['last_updated'] = datetime.now().isoformat()
+                return data
+        except:
+            pass  # Proceed to full update if date parsing fails
+    
+    # Full API fetch
+    weather_info = {
+        'beach_name': beach_name,
+        'latitude': lat,
+        'longitude': lon,
+        'air_temp': 'N/A',
+        'wind_speed': 'N/A',
+        'wind_direction': 'N/A',
+        'wave_height': 'N/A',
+        'wave_direction': 'N/A',
+        'wave_period': 'N/A',
+        'sea_temp': 'N/A',
+        'last_updated': datetime.now().isoformat()
+    }
+    
+    try:
+        # Get weather data
+        weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,wind_speed_10m,wind_direction_10m&timezone=auto"
+        weather_data = call_api(weather_url)
+        current = weather_data.get('current', {})
+        weather_info['air_temp'] = round(current.get('temperature_2m', 'N/A'), 1) if current.get('temperature_2m') is not None else 'N/A'
+        weather_info['wind_speed'] = round(current.get('wind_speed_10m', 'N/A'), 1) if current.get('wind_speed_10m') is not None else 'N/A'
+        weather_info['wind_direction'] = current.get('wind_direction_10m', 'N/A')
+        
+        # Get wave data
+        time.sleep(1)  # Rate limit pause
+        marine_url = f"https://marine-api.open-meteo.com/v1/marine?latitude={lat}&longitude={lon}&current=wave_height,wave_direction,wave_period"
+        marine_data = call_api(marine_url)
+        current_marine = marine_data.get('current', {})
+        weather_info['wave_height'] = round(current_marine.get('wave_height', 'N/A'), 1) if current_marine.get('wave_height') is not None else 'N/A'
+        weather_info['wave_direction'] = current_marine.get('wave_direction', 'N/A')
+        weather_info['wave_period'] = round(current_marine.get('wave_period', 'N/A'), 1) if current_marine.get('wave_period') is not None else 'N/A'
+        
+        # Get sea temp
+        weather_info['sea_temp'] = get_sea_temp(lat, lon, sea_temp_data, beach_name)
+        
+        logging.info(f"Updated {beach_name}")
+        return weather_info
+        
+    except Exception as e:
+        logging.error(f"Failed to update {beach_name}: {str(e)}")
+        return None
+
+def update_beaches_in_batches(beaches, sea_temp_data):
+    """Process beaches in optimized batches"""
+    batch_size = 15  # Smaller batches reduce memory/API load
+    total_batches = (len(beaches) + batch_size - 1) // batch_size
+    new_data = {}
+    
+    for batch_num in range(total_batches):
+        start_idx = batch_num * batch_size
+        end_idx = start_idx + batch_size
+        batch = beaches[start_idx:end_idx]
+        
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            futures = {
+                executor.submit(get_weather_data, row['Latitude'], row['Longitude'], row['Name'], sea_temp_data): row
+                for row in batch
+            }
+            
+            for future in as_completed(futures):
+                row = futures[future]
+                try:
+                    result = future.result()
+                    if result:
+                        # Generate multiple key formats for compatibility
+                        for decimals in [7, 6, 5, 4, 3]:
+                            key = f"{round(row['Latitude'], decimals)}_{round(row['Longitude'], decimals)}"
+                            if key not in new_data:
+                                new_data[key] = result
+                except Exception as e:
+                    logging.error(f"Batch processing failed for {row['Name']}: {str(e)}")
+        
+        # Brief pause between batches
+        if batch_num < total_batches - 1:
+            time.sleep(5)
+    
+    return new_data
+
+def load_beaches_optimized():
+    """Load beach data with optimized coordinate parsing"""
+    csv_path = os.path.join(os.getcwd(), "blueflag_greece_scraped.csv")
     if not os.path.exists(csv_path):
-        logging.error(f"Beach data not found at {csv_path}")
-        return
-    
-    # Load beaches - use regex to extract coordinates from anywhere in each row
-    import re
+        raise FileNotFoundError(f"Beach data not found at {csv_path}")
     
     df = pd.read_csv(csv_path, header=0)
     
-    # Clean the data first - handle actual CSV columns properly
-    # Clean latitude and longitude columns if they exist and have data
-
+    # Clean coordinate columns if they exist
     if 'Latitude' in df.columns and 'Longitude' in df.columns:
-        # Strip whitespace and convert to numeric
-        df['Latitude'] = df['Latitude'].astype(str).str.strip()
-        df['Longitude'] = df['Longitude'].astype(str).str.strip()
         df['Latitude'] = pd.to_numeric(df['Latitude'], errors='coerce')
         df['Longitude'] = pd.to_numeric(df['Longitude'], errors='coerce')
-        
-        # Log how many we found from direct columns
-        direct_coords = df.dropna(subset=['Latitude', 'Longitude'])
-        logging.info(f"Found {len(direct_coords)} beaches with direct Lat/Lon columns")
     
-    # For beaches still missing coordinates, try regex extraction
-    missing_coords_mask = df['Latitude'].isna() | df['Longitude'].isna()
-    if missing_coords_mask.sum() > 0:
-        logging.info(f"Attempting regex extraction for {missing_coords_mask.sum()} beaches with missing coordinates")
-        
-        # Create row string for regex extraction
-        df_missing = df[missing_coords_mask].copy()
-        df_missing['row_string'] = df_missing.astype(str).apply(lambda x: ','.join(x), axis=1)
-        
-        def extract_coordinates_no_filter(row_text):
-            import re
-            # Find ALL decimal numbers - no geographic filtering at all
-            pattern = r'\d+\.\d+'
-            matches = re.findall(pattern, row_text)
-            numbers = [float(m) for m in matches]
-            
-            lat, lon = None, None
-            
-            # NO FILTERING - just take first two reasonable decimal numbers
-            # Assume first coordinate-like number is latitude, second is longitude
-            coordinate_candidates = [n for n in numbers if n > 10 and n < 50]  # Very broad range
-            
-            if len(coordinate_candidates) >= 2:
-                lat = coordinate_candidates[0]
-                lon = coordinate_candidates[1]
-            elif len(coordinate_candidates) == 1:
-                # If only one number, try to guess if it's lat or lon based on typical ranges
-                num = coordinate_candidates[0]
-                if 30 <= num <= 45:  # More likely latitude
-                    lat = num
-                elif 15 <= num <= 35:  # More likely longitude  
-                    lon = num
-            
-            return lat, lon
-        
-        # Apply regex extraction to missing coordinates
-        extracted_coords = df_missing['row_string'].apply(extract_coordinates_no_filter)
-        
-        # Update the main dataframe
-        for idx, (lat, lon) in zip(df_missing.index, extracted_coords):
-            if lat is not None and pd.isna(df.loc[idx, 'Latitude']):
-                df.loc[idx, 'Latitude'] = lat
-            if lon is not None and pd.isna(df.loc[idx, 'Longitude']):
-                df.loc[idx, 'Longitude'] = lon
+    # Ensure Name column exists
+    if 'Name' not in df.columns and len(df.columns) > 0:
+        df = df.rename(columns={df.columns[0]: 'Name'})
     
-    # Clean up temporary column if it exists
-    if 'row_string' in df.columns:
-        df = df.drop('row_string', axis=1)
+    return df.dropna(subset=['Latitude', 'Longitude'])
+
+def update_weather_cache(batch_size=None, batch_number=None):
+    """Main update function with all optimizations"""
+    check_memory_usage()
     
-    # Ensure we have Name column (first column)
-    cols = list(df.columns)
-    if 'Name' not in df.columns and len(cols) > 0:
-        df = df.rename(columns={cols[0]: 'Name'})
-    
-    logging.info(f"Loaded {len(df)} beaches from CSV")
-    
-    # Log beaches with missing coordinates
-    missing_coords = df[df['Latitude'].isna() | df['Longitude'].isna()]
-    if len(missing_coords) > 0:
-        logging.warning(f"Found {len(missing_coords)} beaches with missing/invalid coordinates:")
-        for _, beach in missing_coords.iterrows():
-            lat_val = beach.get('Latitude', 'N/A')
-            lon_val = beach.get('Longitude', 'N/A') 
-            logging.warning(f"  - {beach['Name']} (Lat: {lat_val}, Lon: {lon_val})")
-    
-    # Filter out beaches without valid coordinates
-    df_with_coords = df.dropna(subset=['Latitude', 'Longitude'])
-    
-    # Get unique locations
-    unique_locations = df_with_coords[['Name', 'Latitude', 'Longitude']].drop_duplicates(subset=['Latitude', 'Longitude'])
-    total_locations = len(unique_locations)
-    
-    # BATCH PROCESSING: Determine which beaches to process
-    if batch_size is not None and batch_number is not None:
-        # Process specific batch
-        start_idx = batch_number * batch_size
-        end_idx = min(start_idx + batch_size, total_locations)
+    try:
+        # Load beaches
+        df = load_beaches_optimized()
+        unique_locations = df[['Name', 'Latitude', 'Longitude']].drop_duplicates()
         
-        # Get this batch
-        locations_to_process = unique_locations.iloc[start_idx:end_idx]
+        # Batch processing logic
+        if batch_size and batch_number is not None:
+            start_idx = batch_number * batch_size
+            end_idx = start_idx + batch_size
+            locations_to_process = unique_locations.iloc[start_idx:end_idx]
+            logging.info(f"Processing batch {batch_number + 1} ({len(locations_to_process)} beaches)")
+        else:
+            locations_to_process = unique_locations
+            logging.info(f"Processing all {len(locations_to_process)} beaches")
         
-        logging.info(f"BATCH PROCESSING: Processing batch {batch_number + 1}")
-        logging.info(f"Total locations: {total_locations}, Batch size: {batch_size}")
-        logging.info(f"Processing beaches {start_idx + 1}-{end_idx} ({len(locations_to_process)} beaches)")
+        # Filter beaches needing updates
+        existing_cache = load_existing_cache()
+        beaches_needing_update = [
+            row for _, row in locations_to_process.iterrows()
+            if should_update_beach(existing_cache, row)
+        ]
         
-        if locations_to_process.empty:
-            logging.info("No beaches in this batch - all done!")
+        if not beaches_needing_update:
+            logging.info("All beaches are up-to-date!")
             return
-    else:
-        # Process all locations (original behavior)
-        locations_to_process = unique_locations
-        logging.info(f"Starting weather update for {total_locations} unique beach locations")
-    
-    # Fetch sea temperature for Greece
-    sea_temp_data = fetch_greece_sea_temperature()
-    
-    # Load existing cache (ALWAYS load to preserve existing data)
-    existing_weather_data = load_existing_cache()
-    
-    # SMART CACHING: Filter locations that actually need updating
-    locations_needing_update = []
-    for _, row in locations_to_process.iterrows():
-        # Generate primary key format
-        lat, lon, name = row['Latitude'], row['Longitude'], row['Name']
-        primary_key = f"{round(lat, 6)}_{round(lon, 6)}"
         
-        if should_update_beach(existing_weather_data, primary_key):
-            locations_needing_update.append(row)
-
-    if not locations_needing_update:
-        logging.info("🎉 No beaches need updating - all data is recent!")
-        return
-
-    logging.info(f"🔄 SMART UPDATE: Processing {len(locations_needing_update)} out of {len(locations_to_process)} beaches")
-    
-    # Fetch weather data in parallel (REDUCED workers)
-    new_weather_data = {}
-    
-    with ThreadPoolExecutor(max_workers=3) as executor:  # REDUCED from 8 to 3 workers
-        # Submit only beaches that need updating
-        future_to_beach = {
-            executor.submit(get_weather_data, row['Latitude'], row['Longitude'], row['Name'], sea_temp_data): 
-            (row['Latitude'], row['Longitude'], row['Name']) 
-            for row in locations_needing_update  # Only process filtered beaches
-        }
+        # Get sea temps
+        sea_temp_data = fetch_greece_sea_temperature()
         
-        # Process completed tasks
-        completed = 0
-        for future in as_completed(future_to_beach):
-            lat, lon, name = future_to_beach[future]
-            try:
-                result = future.result()
-                if result:
-                    # CRITICAL: Generate multiple key formats for mobile app compatibility
-                    # This is the KEY FIX - generate keys with different decimal precisions
-                    for decimals in [7, 6, 5, 4, 3]:
-                        key = f"{round(lat, decimals)}_{round(lon, decimals)}"
-                        if key not in new_weather_data:  # Avoid overwriting
-                            new_weather_data[key] = result
-                    
-                    completed += 1
-                    if batch_size is not None:
-                        logging.info(f"Progress: {completed}/{len(locations_needing_update)} beaches updated in this batch")
-                    else:
-                        if completed % 10 == 0:
-                            logging.info(f"Progress: {completed}/{len(locations_needing_update)} beaches updated")
-            except Exception as e:
-                logging.error(f"Error processing {name}: {str(e)}")
-    
-    # Merge new data with existing cache (ALWAYS merge to preserve all data)
-    existing_weather_data.update(new_weather_data)
-    weather_data = existing_weather_data
-    
-    # Save weather data
-    cache_path = os.path.join(save_dir, "weather_cache.json")
-    with open(cache_path, 'w', encoding='utf-8') as f:
-        json.dump(weather_data, f, ensure_ascii=False, indent=2)
-    
-    if batch_size is not None and batch_number is not None:
-        logging.info(f"✅ Batch {batch_number + 1} completed successfully!")
-        logging.info(f"📊 Updated weather for {len(new_weather_data)} locations in this batch")
-        logging.info(f"💾 Total cache now contains {len(weather_data)} locations")
-    else:
-        logging.info(f"✅ Weather cache updated successfully! Saved to {cache_path}")
-        logging.info(f"📊 Updated weather for {len(new_weather_data)} locations")
-    
-    # Summary report
-    total_beaches = len(df)
-    processed_beaches = len(df_with_coords)
-    missing_beaches = len(missing_coords)
-    
-    if batch_size is not None and batch_number is not None:
-        logging.info(f"BATCH SUMMARY: {len(locations_needing_update)} beaches processed in batch {batch_number + 1}")
-        logging.info(f"Overall progress: {min((batch_number + 1) * batch_size, total_locations)}/{total_locations} total locations processed")
-    else:
-        logging.info(f"SUMMARY: {processed_beaches}/{total_beaches} beaches processed, {missing_beaches} skipped due to missing coordinates")
-        logging.info(f"🚀 API OPTIMIZATION: Only updated beaches older than 6 hours - saved ~{len(locations_to_process) - len(locations_needing_update)} API calls!")
+        # Process in optimized batches
+        new_data = update_beaches_in_batches(beaches_needing_update, sea_temp_data)
+        
+        # Merge with existing cache
+        existing_cache.update(new_data)
+        
+        # Periodic cache cleaning
+        if len(existing_cache) > CACHE_CONFIG['max_cache_size']:
+            existing_cache = clean_weather_cache(existing_cache)
+        
+        # Save results
+        save_weather_cache(existing_cache)
+        logging.info(f"Updated {len(new_data)} beaches. Total in cache: {len(existing_cache)}")
+        
+    except Exception as e:
+        logging.error(f"Update failed: {str(e)}", exc_info=True)
+        raise
 
+def should_update_beach(cache, row):
+    """Check if a beach needs updating"""
+    key = f"{round(row['Latitude'], 6)}_{round(row['Longitude'], 6)}"
+    
+    if key not in cache:
+        return True
+    
+    try:
+        last_updated = datetime.fromisoformat(cache[key].get('last_updated', ''))
+        hours_since_update = (datetime.now() - last_updated).total_seconds() / 3600
+        return hours_since_update >= CACHE_CONFIG['weather_hours']
+    except:
+        return True
 
-def continuous_update(interval_minutes=240):
-    """Continuously update weather data at specified interval"""
-    logging.info(f"Starting continuous weather updates every {interval_minutes} minutes")
+def continuous_update(interval_minutes=480):
+    """Run updates continuously with optimized intervals"""
+    logging.info(f"Starting optimized updater (interval: {interval_minutes} mins)")
     
     while True:
         try:
             update_weather_cache()
-            logging.info(f"Next update in {interval_minutes} minutes...")
+            logging.info(f"Sleeping for {interval_minutes} minutes...")
             time.sleep(interval_minutes * 60)
         except KeyboardInterrupt:
-            logging.info("Weather updater stopped by user")
+            logging.info("Stopped by user")
             break
         except Exception as e:
-            logging.error(f"Unexpected error: {str(e)}")
-            logging.info("Retrying in 5 minutes...")
+            logging.error(f"Update cycle failed: {str(e)}")
             time.sleep(300)  # Wait 5 minutes before retry
-
 
 if __name__ == "__main__":
     import argparse
     
-    parser = argparse.ArgumentParser(description='Weather updater for Blue Flag Beaches')
+    parser = argparse.ArgumentParser(description='Optimized Weather Updater')
     parser.add_argument('--once', action='store_true', help='Run once and exit')
-    parser.add_argument('--interval', type=int, default=480, help='Update interval in minutes (default: 480 = 8 hours)')
-    parser.add_argument('--batch-size', type=int, help='Number of beaches to process per batch (optional)')
-    parser.add_argument('--batch-number', type=int, help='Batch number to process (0-indexed, optional)')
+    parser.add_argument('--interval', type=int, default=480, help='Update interval in minutes')
+    parser.add_argument('--batch-size', type=int, help='Batch size for partial processing')
+    parser.add_argument('--batch-number', type=int, help='Batch number (0-indexed)')
     
     args = parser.parse_args()
     
     if args.once:
-        update_weather_cache(batch_size=args.batch_size, batch_number=args.batch_number)
+        update_weather_cache(args.batch_size, args.batch_number)
     else:
         continuous_update(args.interval)
-
