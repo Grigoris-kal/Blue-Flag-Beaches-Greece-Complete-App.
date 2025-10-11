@@ -16,5 +16,9 @@ geopy>=2.3.0
 # For concurrent API calls
 futures3>=1.0.0
 
+# System utilities
+psutil>=5.9.0
+
 # Additional utilities (if needed)
 Pillow>=9.0.0
+
