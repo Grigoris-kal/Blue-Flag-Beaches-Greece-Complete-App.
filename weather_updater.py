@@ -286,8 +286,8 @@ def get_weather_data(lat, lon, beach_name, sea_temp_data=None):
         return None
 
 def update_beaches_in_batches(beaches, sea_temp_data):
-    """Process beaches in optimized batches"""
-    batch_size = 15  # Smaller batches reduce memory/API load
+    """Process beaches sequentially to avoid thread limits"""
+    batch_size = 20  # Smaller batches
     total_batches = (len(beaches) + batch_size - 1) // batch_size
     new_data = {}
     
@@ -296,28 +296,22 @@ def update_beaches_in_batches(beaches, sea_temp_data):
         end_idx = start_idx + batch_size
         batch = beaches[start_idx:end_idx]
         
-        with ThreadPoolExecutor(max_workers=3) as executor:
-            futures = {
-                executor.submit(get_weather_data, row['Latitude'], row['Longitude'], row['Name'], sea_temp_data): row
-                for row in batch
-            }
-            
-            for future in as_completed(futures):
-                row = futures[future]
-                try:
-                    result = future.result()
-                    if result:
-                        # Generate multiple key formats for compatibility
-                        for decimals in [7, 6, 5, 4, 3]:
-                            key = f"{round(row['Latitude'], decimals)}_{round(row['Longitude'], decimals)}"
-                            if key not in new_data:
-                                new_data[key] = result
-                except Exception as e:
-                    logging.error(f"Batch processing failed for {row['Name']}: {str(e)}")
+        # SEQUENTIAL PROCESSING INSTEAD OF THREADED
+        for row in batch:
+            try:
+                result = get_weather_data(row['Latitude'], row['Longitude'], row['Name'], sea_temp_data)
+                if result:
+                    # Generate multiple key formats for compatibility
+                    for decimals in [7, 6, 5, 4, 3]:
+                        key = f"{round(row['Latitude'], decimals)}_{round(row['Longitude'], decimals)}"
+                        if key not in new_data:
+                            new_data[key] = result
+            except Exception as e:
+                logging.error(f"Processing failed for {row['Name']}: {str(e)}")
         
-        # Brief pause between batches
+        # Pause between batches
         if batch_num < total_batches - 1:
-            time.sleep(5)
+            time.sleep(15)  # Longer pause
     
     return new_data
 
@@ -436,3 +430,4 @@ if __name__ == "__main__":
         update_weather_cache(args.batch_size, args.batch_number)
     else:
         continuous_update(args.interval)
+
