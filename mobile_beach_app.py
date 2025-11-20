@@ -133,7 +133,11 @@ def load_resource(resource_name):
             response.raise_for_status()
             
             if resource_name == 'beach_data':
-                return pd.read_csv(StringIO(response.text))
+                try:
+                    return pd.read_csv(StringIO(response.text), engine='python')
+                except pd.errors.ParserError:
+                    # Fallback if there are still parsing issues
+                    return pd.read_csv(StringIO(response.text), engine='python', error_bad_lines=False, warn_bad_lines=False)
             elif resource_name in ['weather_cache', 'depth_data']:
                 return response.json()
             else:  # Images
@@ -522,5 +526,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
