@@ -321,7 +321,11 @@ def load_beaches_optimized():
     if not os.path.exists(csv_path):
         raise FileNotFoundError(f"Beach data not found at {csv_path}")
     
-    df = pd.read_csv(csv_path, header=0)
+    # FIXED: Add engine='python' and error handling
+    try:
+        df = pd.read_csv(csv_path, header=0, engine='python')
+    except pd.errors.ParserError:
+        df = pd.read_csv(csv_path, header=0, engine='python', error_bad_lines=False)
     
     # Clean coordinate columns if they exist
     if 'Latitude' in df.columns and 'Longitude' in df.columns:
@@ -430,4 +434,5 @@ if __name__ == "__main__":
         update_weather_cache(args.batch_size, args.batch_number)
     else:
         continuous_update(args.interval)
+
 
