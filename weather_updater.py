@@ -1,14 +1,7 @@
 #!/usr/bin/env python3
 """
-Weather Updater (Option B) - write only NEW/UPDATED entries per batch.
-
-Behavior:
-- Loads the existing canonical cache from data_dir/weather_cache.json (if present)
-- Determines which beaches need update (based on last_updated)
-- Fetches data for only those beaches in the given batch
-- Writes a partial cache JSON (only updated entries) to data_dir/weather_cache.json
-  - If no entries updated, writes an empty JSON object {}
-- Designed to be run in a CI matrix job; the combine job merges partial results.
+Weather Updater for Blue Flag Beaches Greece - OPTIMIZED VERSION
+With RESTORED multi-precision coordinate keys for compatibility
 """
 
 from __future__ import annotations
@@ -52,9 +45,6 @@ if not os.getenv('GITHUB_ACTIONS'):
     if os.path.exists(env_path):
         load_dotenv(env_path)
 
-# ---------- Imports that require logging configured ----------
-# (already imported above)
-
 # ---------- Config ----------
 CACHE_CONFIG = {
     'sea_temp_hours': 4,       # Cache sea temp for 4 hours
@@ -76,7 +66,6 @@ def check_memory_usage():
         mem_info = process.memory_info()
         logging.info(f"Memory usage: {mem_info.rss / 1024 / 1024:.2f} MB RSS")
         soft_limit = 512 * 1024 * 1024
-        # setrlimit may not be available on all platforms; guard it
         try:
             resource.setrlimit(resource.RLIMIT_AS, (soft_limit, resource.RLIM_INFINITY))
         except Exception:
@@ -85,7 +74,7 @@ def check_memory_usage():
         logging.debug("psutil not available or failed to read memory info")
 
 @sleep_and_retry
-@limits(calls=30, period=60)  # rate-limit: 30 calls per minute
+@limits(calls=30, period=60)
 def call_api(url: str) -> Any:
     try:
         r = requests.get(url, timeout=20)
@@ -104,7 +93,6 @@ def load_existing_cache() -> Dict[str, Any]:
                 data = json.load(f)
             if isinstance(data, dict):
                 logging.info(f"Loaded existing cache with {len(data)} entries")
-                # Optionally clean if too large
                 if len(data) > CACHE_CONFIG['max_cache_size']:
                     logging.info("Existing cache too large; performing light cleaning")
                     return clean_weather_cache(data)
@@ -116,9 +104,7 @@ def load_existing_cache() -> Dict[str, Any]:
     return {}
 
 def save_partial_cache(partial: Dict[str, Any]) -> None:
-    """Write only the partial (updated) entries into data_dir/weather_cache.json atomically.
-    If partial is empty, still write an empty JSON object {} so artifact uploader sees a file.
-    """
+    """Write only the partial (updated) entries into data_dir/weather_cache.json atomically."""
     temp = os.path.join(data_dir, "weather_cache.tmp")
     final = os.path.join(data_dir, "weather_cache.json")
     try:
@@ -126,7 +112,6 @@ def save_partial_cache(partial: Dict[str, Any]) -> None:
             json.dump(partial, f, ensure_ascii=False, indent=2)
         os.replace(temp, final)
         logging.info(f"Wrote partial cache with {len(partial)} entries to {final}")
-        # optional compression for large partials
         if os.path.getsize(final) > 1024 * 1024:
             with open(final, 'rb') as f_in, gzip.open(final + '.gz', 'wb') as f_out:
                 shutil.copyfileobj(f_in, f_out)
@@ -197,7 +182,6 @@ def get_sea_temp(lat: float, lon: float, sea_temp_data: Dict[str, Any], beach_na
                     best_t = p['temp']
             if best_t is not None and best_d < 2.0:
                 return best_t
-        # fallback to marine-api
         marine_url = f"https://marine-api.open-meteo.com/v1/marine?latitude={lat}&longitude={lon}&current=sea_surface_temperature"
         data = call_api(marine_url)
         val = data.get('current', {}).get('sea_surface_temperature')
@@ -233,7 +217,7 @@ def get_weather_data(lat: float, lon: float, beach_name: str, sea_temp_data: Dic
             entry['wind_speed'] = round(cur.get('wind_speed_10m'),1)
         entry['wind_direction'] = cur.get('wind_direction_10m', 'N/A')
 
-        time.sleep(1)  # small pause
+        time.sleep(1)
         marine_url = f"https://marine-api.open-meteo.com/v1/marine?latitude={lat}&longitude={lon}&current=wave_height,wave_direction,wave_period"
         m = call_api(marine_url)
         cm = m.get('current', {})
@@ -259,7 +243,6 @@ def load_beaches_optimized() -> pd.DataFrame:
         df = pd.read_csv(csv_path, header=0, engine='python')
     except pd.errors.ParserError:
         df = pd.read_csv(csv_path, header=0, engine='python', error_bad_lines=False)
-    # normalize coords
     if 'Latitude' in df.columns and 'Longitude' in df.columns:
         df['Latitude'] = pd.to_numeric(df['Latitude'], errors='coerce')
         df['Longitude'] = pd.to_numeric(df['Longitude'], errors='coerce')
@@ -268,27 +251,27 @@ def load_beaches_optimized() -> pd.DataFrame:
     return df.dropna(subset=['Latitude','Longitude'])
 
 def should_update_beach(cache: Dict[str,Any], row: pd.Series) -> bool:
-    key = f"{round(row['Latitude'],6)}_{round(row['Longitude'],6)}"
-    if key not in cache:
-        return True
-    try:
-        last = cache[key].get('last_updated','')
-        if not last:
-            return True
-        last_dt = datetime.fromisoformat(last)
-        hours = (datetime.now() - last_dt).total_seconds() / 3600.0
-        return hours >= CACHE_CONFIG['weather_hours']
-    except Exception:
-        return True
+    # Try multiple precision levels like the cache generation does
+    for decimals in (7, 6, 5, 4, 3):
+        key = f"{round(row['Latitude'], decimals)}_{round(row['Longitude'], decimals)}"
+        if key in cache:
+            try:
+                last = cache[key].get('last_updated','')
+                if not last:
+                    return True
+                last_dt = datetime.fromisoformat(last)
+                hours = (datetime.now() - last_dt).total_seconds() / 3600.0
+                return hours >= CACHE_CONFIG['weather_hours']
+            except Exception:
+                return True
+    return True
 
 # ---------- Main batch processing (produces only updates) ----------
 def update_weather_cache(batch_size: Optional[int]=None, batch_number: Optional[int]=None):
     check_memory_usage()
-    # Load beaches
     df = load_beaches_optimized()
     unique_locations = df[['Name','Latitude','Longitude']].drop_duplicates().reset_index(drop=True)
 
-    # Determine which slice to process
     if batch_size is not None and batch_number is not None:
         start = batch_number * batch_size
         end = start + batch_size
@@ -298,10 +281,8 @@ def update_weather_cache(batch_size: Optional[int]=None, batch_number: Optional[
         slice_df = unique_locations
         logging.info(f"Processing entire dataset -> {len(slice_df)} beaches")
 
-    # Load existing full cache once
     existing_cache = load_existing_cache()
 
-    # Filter beaches that need update (based on existing cache)
     to_update = []
     for _, row in slice_df.iterrows():
         if should_update_beach(existing_cache, row):
@@ -309,20 +290,18 @@ def update_weather_cache(batch_size: Optional[int]=None, batch_number: Optional[
 
     if not to_update:
         logging.info("No beaches in this batch need updates. Writing empty partial cache {}")
-        save_partial_cache({})  # write an empty object so artifact uploader has a file
+        save_partial_cache({})
         return
 
-    # Fetch sea temp dataset once
     sea_temp_data = fetch_greece_sea_temperature() or {}
 
-    # Collect only updated entries
     partial_updates: Dict[str, Any] = {}
     for row in to_update:
         try:
             entry = get_weather_data(row['Latitude'], row['Longitude'], row['Name'], sea_temp_data)
             if entry:
-                # Use high-precision keys so merge is robust; these keys match canonical key format
-                for decimals in (7,6,5,4,3):
+                # RESTORED: Generate multiple precision keys for compatibility
+                for decimals in (7, 6, 5, 4, 3):
                     k = f"{round(row['Latitude'], decimals)}_{round(row['Longitude'], decimals)}"
                     # only set if not already added (prefer highest precision)
                     if k not in partial_updates:
@@ -331,12 +310,11 @@ def update_weather_cache(batch_size: Optional[int]=None, batch_number: Optional[
         except Exception as e:
             logging.error(f"Error processing {row['Name']}: {e}")
 
-    # Save only partial updates (could be empty if all fetches failed)
     save_partial_cache(partial_updates)
 
 # ---------- CLI ----------
 def main():
-    parser = argparse.ArgumentParser(description="Weather Updater - Option B (partial updates)")
+    parser = argparse.ArgumentParser(description="Weather Updater - With multi-precision coordinate keys")
     parser.add_argument('--once', action='store_true', help='Run once and exit')
     parser.add_argument('--interval', type=int, default=480, help='Interval minutes for continuous run')
     parser.add_argument('--batch-size', type=int, help='Batch size for partial processing')
@@ -344,7 +322,6 @@ def main():
     parser.add_argument('--data-dir', default='.', help='Directory for cache, logs, and data files')
     args = parser.parse_args()
 
-    # Respect passed data-dir (override earlier)
     global data_dir
     data_dir = os.path.abspath(args.data_dir)
     os.makedirs(data_dir, exist_ok=True)
