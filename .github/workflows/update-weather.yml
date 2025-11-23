@@ -4,23 +4,20 @@ permissions:
 
 on:
   schedule:
-    - cron: '0 7,14 * * *'  # 10 AM and 5 PM Greek time (EEST)
-  workflow_dispatch:  # Manual trigger
+    - cron: '0 7,14 * * *'
+  workflow_dispatch:
 
 jobs:
   update-weather:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        batch: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]  # 10 batches for ~311 beaches (~30 per batch)
+        batch: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
       fail-fast: false
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -28,26 +25,16 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+        run: pip install -r requirements.txt
 
-      - name: Debug - List files
-        run: ls -la
-
-      - name: Run weather updater (Batch ${{ matrix.batch }})
-        run: |
-          python weather_update.py --once --batch-size 30 --batch-number ${{ matrix.batch }}
-        env:
-          GITHUB_ACTIONS: true
-          JAWG_TOKEN: ${{ secrets.JAWG_TOKEN }}
+      - name: Run weather updater
+        run: python weather_update.py --once --batch-size 30 --batch-number ${{ matrix.batch }}
 
       - name: Upload weather cache artifact
         uses: actions/upload-artifact@v4
         with:
           name: weather-cache-batch-${{ matrix.batch }}
           path: weather_cache.json
-          retention-days: 1
 
   combine-and-commit:
     needs: update-weather
@@ -56,79 +43,35 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-
-      - name: Download all weather cache artifacts
+      - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: weather-cache-batch-*
           path: artifacts/
-          merge-multiple: false
 
-      - name: Combine weather caches
+      - name: Combine caches
         run: |
           python -c "
-          import json
-          import os
-
-          combined_data = {}
-          artifacts_dir = 'artifacts'
-
-          print('=== DEBUG: Listing all downloaded files ===')
-          for root, dirs, files in os.walk(artifacts_dir):
-              for file in files:
-                  filepath = os.path.join(root, file)
-                  size = os.path.getsize(filepath)
-                  print(f'Found file: {filepath} (size: {size} bytes)')
-
-          print('=== Loading and merging batch results ===')
-          batch_count = 0
-
-          for root, dirs, files in os.walk(artifacts_dir):
-              for file in files:
-                  if file == 'weather_cache.json':
-                      filepath = os.path.join(root, file)
-                      batch_count += 1
-
-                      if os.path.getsize(filepath) > 0:
-                          try:
-                              with open(filepath, 'r', encoding='utf-8') as f:
-                                  batch_data = json.load(f)
-
-                              combined_data.update(batch_data)
-                              print(f'Batch {batch_count}: Loaded {len(batch_data)} entries from {filepath}')
-                          except Exception as e:
-                              print(f'Batch {batch_count}: Error loading {filepath}: {e}')
-                      else:
-                          print(f'Batch {batch_count}: Empty file {filepath}')
-
-          print(f'=== SUMMARY ===')
-          print(f'Total batches found: {batch_count}')
-          print(f'Combined cache contains {len(combined_data)} total entries')
-
-          with open('weather_cache.json', 'w', encoding='utf-8') as f:
-              json.dump(combined_data, f, ensure_ascii=False, indent=2)
-
-          print(f'Successfully saved combined cache with {len(combined_data)} entries')
+          import json, os
+          combined = {}
+          for root, dirs, files in os.walk('artifacts'):
+            for file in files:
+              if file == 'weather_cache.json':
+                path = os.path.join(root, file)
+                try:
+                  with open(path) as f:
+                    data = json.load(f)
+                    combined.update(data)
+                except: pass
+          with open('weather_cache.json', 'w') as f:
+            json.dump(combined, f, indent=2)
+          print(f'Combined {len(combined)} entries')
           "
 
-      - name: Commit changes
+      - name: Commit and push
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
+          git config user.email "action@github.com"
+          git config user.name "GitHub Action"
           git add weather_cache.json
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "Update weather cache - Combined batches - $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
-          fi
-
-      - name: Push changes
-        run: git push origin main
+          git commit -m "Update weather cache - $(date)" || exit 0
+          git push
