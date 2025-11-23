@@ -1,6 +1,6 @@
 {
   "39.1211794_22.9157281": {
-    "beach_name": "\u039d\u03b7\u03b5\u03c2 \u03a3\u03bf\u03cd\u03c1\u03c0\u03b7\u03c2",
+    "beach_name": "Νηες Σούρπης",
     "latitude": 39.1211794,
     "longitude": 22.9157281,
     "air_temp": 10.4,
@@ -13,7 +13,7 @@
     "last_updated": "2025-11-23T21:26:53.145487"
   },
   "39.1733156_23.4249591": {
-    "beach_name": "\u0391\u03c3\u03ad\u03bb\u03b7\u03bd\u03bf\u03c2",
+    "beach_name": "Ασέληνος",
     "latitude": 39.1733156,
     "longitude": 23.4249591,
     "air_temp": 15.1,
@@ -26,7 +26,7 @@
     "last_updated": "2025-11-23T21:26:56.034062"
   },
   "39.1469084_23.4639905": {
-    "beach_name": "\u0391\u03c7\u03bb\u03b1\u03b4\u03b9\u03ad\u03c2",
+    "beach_name": "Αχλαδιές",
     "latitude": 39.1469084,
     "longitude": 23.4639905,
     "air_temp": 15.9,
@@ -39,7 +39,7 @@
     "last_updated": "2025-11-23T21:26:58.757426"
   },
   "38.5827737_23.2987351": {
-    "beach_name": "\u0392\u03bb\u03c5\u03c7\u03ac\u03b4\u03b1",
+    "beach_name": "Βλυχάδα",
     "latitude": 38.5827737,
     "longitude": 23.2987351,
     "air_temp": 12.8,
@@ -52,7 +52,7 @@
     "last_updated": "2025-11-23T21:29:27.615068"
   },
   "38.1447307_24.0353823": {
-    "beach_name": "\u039b\u03b9\u03b2\u03b1\u03bd\u03ac\u03c4\u03b5\u03c2",
+    "beach_name": "Λιβανάτες",
     "latitude": 38.1447307,
     "longitude": 24.0353823,
     "air_temp": 12.6,
@@ -65,7 +65,7 @@
     "last_updated": "2025-11-23T21:29:30.383823"
   },
   "38.6713704_23.0710584": {
-    "beach_name": "\u03a3\u03ba\u03ac\u03bb\u03b1 \u0391\u03c4\u03b1\u03bb\u03ac\u03bd\u03c4\u03b7\u03c2",
+    "beach_name": "Σκάλα Αταλάντης",
     "latitude": 38.6713704,
     "longitude": 23.0710584,
     "air_temp": 13.5,
@@ -78,7 +78,7 @@
     "last_updated": "2025-11-23T21:29:33.138593"
   },
   "38.4071208_21.9444736": {
-    "beach_name": "\u039c\u03bf\u03bd\u03b1\u03c3\u03c4\u03b7\u03c1\u03ac\u03ba\u03b9",
+    "beach_name": "Μοναστηράκι",
     "latitude": 38.4071208,
     "longitude": 21.9444736,
     "air_temp": 12.9,
@@ -91,7 +91,7 @@
     "last_updated": "2025-11-23T21:31:38.030682"
   },
   "38.3931709_22.056732": {
-    "beach_name": "\u03a3\u03b5\u03c1\u03b3\u03bf\u03cd\u03bb\u03b1",
+    "beach_name": "Σεργούλα",
     "latitude": 38.3931709,
     "longitude": 22.056732,
     "air_temp": 12.4,
@@ -104,7 +104,7 @@
     "last_updated": "2025-11-23T21:31:40.796395"
   },
   "38.4000582_21.9944881": {
-    "beach_name": "\u03a3\u03ba\u03ac\u03bb\u03c9\u03bc\u03b1",
+    "beach_name": "Σκάλωμα",
     "latitude": 38.4000582,
     "longitude": 21.9944881,
     "air_temp": 12.8,
@@ -117,7 +117,7 @@
     "last_updated": "2025-11-23T21:31:43.518386"
   },
   "38.4113777_23.6755992": {
-    "beach_name": "\u039b\u03b5\u03c5\u03ba\u03b1\u03bd\u03c4\u03af",
+    "beach_name": "Λευκαντί",
     "latitude": 38.4113777,
     "longitude": 23.6755992,
     "air_temp": 12.3,
@@ -128,5 +128,330 @@
     "wave_period": 1.4,
     "sea_temp": 20.1,
     "last_updated": "2025-11-23T21:34:12.394199"
+  },
+  "38.151713_20.4846317": {
+    "beach_name": "Πλατύς Γιαλός",
+    "latitude": 38.151713,
+    "longitude": 20.4846317,
+    "air_temp": 11.6,
+    "wind_speed": 5.4,
+    "wind_direction": 42,
+    "wave_height": 1.4,
+    "wave_direction": 253,
+    "wave_period": 6.5,
+    "sea_temp": 20.5,
+    "last_updated": "2025-11-23T22:43:00.390218"
+  },
+  "38.0766213_20.7703458": {
+    "beach_name": "Σκάλα 1",
+    "latitude": 38.0766213,
+    "longitude": 20.7703458,
+    "air_temp": 12.1,
+    "wind_speed": 7.2,
+    "wind_direction": 297,
+    "wave_height": 1.2,
+    "wave_direction": 254,
+    "wave_period": 6.5,
+    "sea_temp": 20.5,
+    "last_updated": "2025-11-23T22:43:03.281135"
+  },
+  "38.076786_20.7701151": {
+    "beach_name": "Σκάλα 2",
+    "latitude": 38.076786,
+    "longitude": 20.7701151,
+    "air_temp": 12.0,
+    "wind_speed": 7.2,
+    "wind_direction": 297,
+    "wave_height": 1.2,
+    "wave_direction": 254,
+    "wave_period": 6.5,
+    "sea_temp": "N/A",
+    "last_updated": "2025-11-23T22:43:05.964702"
+  },
+  "37.8155909_20.8719262": {
+    "beach_name": "Τσιλιβί",
+    "latitude": 37.8155909,
+    "longitude": 20.8719262,
+    "air_temp": 9.8,
+    "wind_speed": 4.7,
+    "wind_direction": 261,
+    "wave_height": 1.6,
+    "wave_direction": 260,
+    "wave_period": 6.4,
+    "sea_temp": 20.6,
+    "last_updated": "2025-11-23T22:45:10.679668"
+  },
+  "37.8367966_20.817147": {
+    "beach_name": "Ψαρού",
+    "latitude": 37.8367966,
+    "longitude": 20.817147,
+    "air_temp": 11.5,
+    "wind_speed": 5.8,
+    "wind_direction": 240,
+    "wave_height": 1.6,
+    "wave_direction": 259,
+    "wave_period": 6.3,
+    "sea_temp": 20.5,
+    "last_updated": "2025-11-23T22:45:13.310256"
+  },
+  "35.2333193_23.6362367": {
+    "beach_name": "Γραμμένο",
+    "latitude": 35.2333193,
+    "longitude": 23.6362367,
+    "air_temp": 17.6,
+    "wind_speed": 22.2,
+    "wind_direction": 317,
+    "wave_height": 1.7,
+    "wave_direction": 280,
+    "wave_period": 6.8,
+    "sea_temp": 21.2,
+    "last_updated": "2025-11-23T22:45:15.941099"
+  },
+  "35.4991849_24.1798266": {
+    "beach_name": "Μαράθι",
+    "latitude": 35.4991849,
+    "longitude": 24.1798266,
+    "air_temp": 13.9,
+    "wind_speed": 9.8,
+    "wind_direction": 264,
+    "wave_height": 0.5,
+    "wave_direction": 317,
+    "wave_period": 4.3,
+    "sea_temp": 21.4,
+    "last_updated": "2025-11-23T22:47:22.766255"
+  },
+  "35.5138793_24.009685": {
+    "beach_name": "Νέα Χώρα",
+    "latitude": 35.5138793,
+    "longitude": 24.009685,
+    "air_temp": 15.7,
+    "wind_speed": 11.7,
+    "wind_direction": 227,
+    "wave_height": 1.4,
+    "wave_direction": 280,
+    "wave_period": 5.8,
+    "sea_temp": 21.3,
+    "last_updated": "2025-11-23T22:47:25.412973"
+  },
+  "35.5034319_23.9349619": {
+    "beach_name": "Σταλός",
+    "latitude": 35.5034319,
+    "longitude": 23.9349619,
+    "air_temp": 14.8,
+    "wind_speed": 8.1,
+    "wind_direction": 225,
+    "wave_height": 1.5,
+    "wave_direction": 278,
+    "wave_period": 6.0,
+    "sea_temp": 21.3,
+    "last_updated": "2025-11-23T22:47:28.070238"
+  },
+  "35.1915354_24.3954504": {
+    "beach_name": "Πλακιάς",
+    "latitude": 35.1915354,
+    "longitude": 24.3954504,
+    "air_temp": 15.0,
+    "wind_speed": 10.3,
+    "wind_direction": 25,
+    "wave_height": 0.9,
+    "wave_direction": 256,
+    "wave_period": 6.8,
+    "sea_temp": 21.8,
+    "last_updated": "2025-11-23T22:49:35.011136"
+  },
+  "40.1943084_23.3278856": {
+    "beach_name": "Νέα Ποτίδαια Προποντίδας",
+    "latitude": 40.1943084,
+    "longitude": 23.3278856,
+    "air_temp": 11.2,
+    "wind_speed": 4.7,
+    "wind_direction": 328,
+    "wave_height": 0.5,
+    "wave_direction": 207,
+    "wave_period": 3.1,
+    "sea_temp": 18.9,
+    "last_updated": "2025-11-23T22:43:00.869607"
+  },
+  "40.2178181_23.3170998": {
+    "beach_name": "Πόρτες/Portes Lithos",
+    "latitude": 40.2178181,
+    "longitude": 23.3170998,
+    "air_temp": 11.4,
+    "wind_speed": 4.7,
+    "wind_direction": 328,
+    "wave_height": 0.5,
+    "wave_direction": 207,
+    "wave_period": 3.1,
+    "sea_temp": 18.9,
+    "last_updated": "2025-11-23T22:43:03.760368"
+  },
+  "40.2713263_23.179849": {
+    "beach_name": "Τρίγλια",
+    "latitude": 40.2713263,
+    "longitude": 23.179849,
+    "air_temp": 11.4,
+    "wind_speed": 4.7,
+    "wind_direction": 328,
+    "wave_height": 0.4,
+    "wave_direction": 202,
+    "wave_period": 3.0,
+    "sea_temp": 18.7,
+    "last_updated": "2025-11-23T22:43:06.505105"
+  },
+  "40.2402326_22.5849354": {
+    "beach_name": "Ολυμπιακή Ακτή",
+    "latitude": 40.2402326,
+    "longitude": 22.5849354,
+    "air_temp": 8.4,
+    "wind_speed": 13.5,
+    "wind_direction": 312,
+    "wave_height": 0.2,
+    "wave_direction": 146,
+    "wave_period": 3.5,
+    "sea_temp": "N/A",
+    "last_updated": "2025-11-23T22:44:12.971121"
+  },
+  "40.0591805_22.5638631": {
+    "beach_name": "Λεπτοκαρυά 2",
+    "latitude": 40.0591805,
+    "longitude": 22.5638631,
+    "air_temp": 11.2,
+    "wind_speed": 5.4,
+    "wind_direction": 278,
+    "wave_height": 0.2,
+    "wave_direction": 181,
+    "wave_period": 3.4,
+    "sea_temp": 18.5,
+    "last_updated": "2025-11-23T22:45:39.038741"
+  },
+  "40.1024494_22.5018169": {
+    "beach_name": "Λιτόχωρο",
+    "latitude": 40.1024494,
+    "longitude": 22.5018169,
+    "air_temp": 6.5,
+    "wind_speed": 1.8,
+    "wind_direction": 259,
+    "wave_height": 0.2,
+    "wave_direction": 181,
+    "wave_period": 3.4,
+    "sea_temp": 18.5,
+    "last_updated": "2025-11-23T22:45:41.784234"
+  },
+  "39.9761052_22.6383557": {
+    "beach_name": "Νέοι Πόροι",
+    "latitude": 39.9761052,
+    "longitude": 22.6383557,
+    "air_temp": 12.3,
+    "wind_speed": 5.4,
+    "wind_direction": 250,
+    "wave_height": 0.2,
+    "wave_direction": 146,
+    "wave_period": 3.4,
+    "sea_temp": 18.6,
+    "last_updated": "2025-11-23T22:45:44.532012"
+  },
+  "39.9510798_22.7078128": {
+    "beach_name": "Νέα Μεσάγγαλα 1",
+    "latitude": 39.9510798,
+    "longitude": 22.7078128,
+    "air_temp": 12.4,
+    "wind_speed": 17.6,
+    "wind_direction": 235,
+    "wave_height": 0.3,
+    "wave_direction": 192,
+    "wave_period": 2.9,
+    "sea_temp": "N/A",
+    "last_updated": "2025-11-23T22:46:29.221662"
+  },
+  "39.3078899_22.9374694": {
+    "beach_name": "Αμφανών",
+    "latitude": 39.3078899,
+    "longitude": 22.9374694,
+    "air_temp": 9.6,
+    "wind_speed": 8.4,
+    "wind_direction": 353,
+    "wave_height": 0.2,
+    "wave_direction": 299,
+    "wave_period": 2.5,
+    "sea_temp": 19.8,
+    "last_updated": "2025-11-23T22:47:52.161770"
+  },
+  "39.3656784_22.9708242": {
+    "beach_name": "Άναυρος",
+    "latitude": 39.3656784,
+    "longitude": 22.9708242,
+    "air_temp": 13.0,
+    "wind_speed": 15.7,
+    "wind_direction": 286,
+    "wave_height": 0.3,
+    "wave_direction": 285,
+    "wave_period": 2.5,
+    "sea_temp": 19.7,
+    "last_updated": "2025-11-23T22:47:54.949125"
+  },
+  "39.3191835_23.0168187": {
+    "beach_name": "Καρνάγιο",
+    "latitude": 39.3191835,
+    "longitude": 23.0168187,
+    "air_temp": 13.4,
+    "wind_speed": 15.7,
+    "wind_direction": 286,
+    "wave_height": 0.2,
+    "wave_direction": 299,
+    "wave_period": 2.5,
+    "sea_temp": "N/A",
+    "last_updated": "2025-11-23T22:47:57.706199"
+  },
+  "39.280167_22.8186102": {
+    "beach_name": "Νέα Αγχίαλος",
+    "latitude": 39.280167,
+    "longitude": 22.8186102,
+    "air_temp": 12.0,
+    "wind_speed": 12.3,
+    "wind_direction": 285,
+    "wave_height": 0.1,
+    "wave_direction": 273,
+    "wave_period": 1.9,
+    "sea_temp": 19.4,
+    "last_updated": "2025-11-23T22:48:41.915952"
+  },
+  "39.2913688_22.903177": {
+    "beach_name": "Πλάκες",
+    "latitude": 39.2913688,
+    "longitude": 22.903177,
+    "air_temp": 12.2,
+    "wind_speed": 12.3,
+    "wind_direction": 285,
+    "wave_height": 0.1,
+    "wave_direction": 273,
+    "wave_period": 1.9,
+    "sea_temp": 19.8,
+    "last_updated": "2025-11-23T22:48:44.696699"
+  },
+  "39.3153139_23.0488044": {
+    "beach_name": "Πλατανίδια",
+    "latitude": 39.3153139,
+    "longitude": 23.0488044,
+    "air_temp": 13.4,
+    "wind_speed": 15.7,
+    "wind_direction": 286,
+    "wave_height": 0.2,
+    "wave_direction": 299,
+    "wave_period": 2.5,
+    "sea_temp": "N/A",
+    "last_updated": "2025-11-23T22:48:47.462432"
+  },
+  "39.0337545_22.9648107": {
+    "beach_name": "Λουτρό Πτελεού",
+    "latitude": 39.0337545,
+    "longitude": 22.9648107,
+    "air_temp": 10.0,
+    "wind_speed": 5.0,
+    "wind_direction": 249,
+    "wave_height": 0.0,
+    "wave_direction": 269,
+    "wave_period": 1.7,
+    "sea_temp": 19.8,
+    "last_updated": "2025-11-23T22:50:10.399781"
   }
 }
