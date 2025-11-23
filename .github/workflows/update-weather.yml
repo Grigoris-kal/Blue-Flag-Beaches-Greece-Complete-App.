@@ -121,14 +121,17 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          
-          # Pull latest changes first to avoid conflicts
-          git pull origin main
-          
+
+          # Ensure correct remote URL (no trailing dot)
+          git remote set-url origin "https://github.com/${{ github.repository }}.git"
+
+          # Pull latest changes with rebase to prevent merge commits
+          git pull --rebase origin main
+
           git add weather_cache.json
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Update weather cache - Combined batches - $(date)"
-            git push
+            git commit -m "Update weather cache - Combined batches - $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+            git push origin main
           fi
