@@ -37,7 +37,7 @@ jobs:
 
       - name: Run weather updater (Batch ${{ matrix.batch }})
         run: |
-          python weather_update.py --once --batch-size 30 --batch-number ${{ matrix.batch }}  # FIXED: weather_update.py
+          python weather_update.py --once --batch-size 30 --batch-number ${{ matrix.batch }}
         env:
           GITHUB_ACTIONS: true
           JAWG_TOKEN: ${{ secrets.JAWG_TOKEN }}
@@ -59,8 +59,6 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
-
-      # REMOVE the "Fix remote URL" step - it's breaking everything!
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -125,7 +123,6 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-
           git add weather_cache.json
           if git diff --staged --quiet; then
             echo "No changes to commit"
