@@ -1,23 +1,22 @@
-name: Update Weather Data (Safe, validated cache updates)
+name: Update Weather Data
 permissions:
   contents: write
 
 on:
   schedule:
-    - cron: "0 7,14 * * *"   # 10:00 and 17:00 Greece time
-  workflow_dispatch:
+    - cron: '0 7,14 * * *'  # 10 AM and 5 PM Greek time (EEST)
+  workflow_dispatch:  # Manual trigger
 
 jobs:
   update-weather:
-    name: Run updater (matrix batch)
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        batch: [0,1,2,3,4,5,6,7,8,9]
+        batch: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]  # 10 batches for ~311 beaches (~30 per batch)
       fail-fast: false
 
     steps:
-      - name: Checkout repo (full)
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -37,271 +36,126 @@ jobs:
         run: |
           python weather_updater.py --once --batch-size 30 --batch-number ${{ matrix.batch }}
         env:
-          GITHUB_ACTIONS: 'true'
+          GITHUB_ACTIONS: true
           JAWG_TOKEN: ${{ secrets.JAWG_TOKEN }}
 
-      - name: Show artifact file info
-        run: |
-          if [ -f weather_cache.json ]; then
-            echo "weather_cache.json exists, size:"
-            ls -l weather_cache.json
-            echo "head (first 200 chars):"
-            head -c 200 weather_cache.json || true
-          else
-            echo "weather_cache.json not produced by this batch."
-          fi
-
-      - name: Upload batch artifact
+      - name: Upload weather cache artifact
         uses: actions/upload-artifact@v4
         with:
-          name: batch-${{ matrix.batch }}
+          name: weather-cache-batch-${{ matrix.batch }}
           path: weather_cache.json
           retention-days: 1
 
   combine-and-commit:
-    name: Combine artifacts, validate, compare, commit if changed
     needs: update-weather
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository (full)
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
-      - name: Fix remote URL (remove trailing dot if any)
+      - name: Fix remote URL to remove trailing dot
         run: |
-          orig=$(git remote get-url origin)
-          echo "Original remote URL: $orig"
-          fixed=$(echo "$orig" | sed 's/\.$//')
-          git remote set-url origin "$fixed"
-          echo "Fixed remote URL:"
-          git remote -v
+          url=$(git remote get-url origin)
+          echo "Original remote URL: $url"
+          fixed_url=$(echo "$url" | sed 's/\.$//')
+          echo "Fixed remote URL: $fixed_url"
+          git remote set-url origin "$fixed_url"
+
+      - name: Debug remote URL
+        run: git remote -v
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
-      - name: Download all batch artifacts
+      - name: Download all weather cache artifacts
         uses: actions/download-artifact@v4
         with:
+          pattern: weather-cache-batch-*
           path: artifacts/
-          pattern: batch-*
+          merge-multiple: false
 
-      - name: Combine batch artifacts into weather_cache.json
-        id: combine
+      - name: Combine weather caches
         run: |
-          python - <<'PY'
-          import os, json, sys
+          python -c "
+          import json
+          import os
 
-          artifacts_root = "artifacts"
-          combined = {}
-          total_loaded = 0
-          corrupted = 0
+          combined_data = {}
+          artifacts_dir = 'artifacts'
 
-          if not os.path.isdir(artifacts_root):
-              print("No artifacts directory found.")
-              open("weather_cache.json","w").write("{}")
-              sys.exit(0)
+          print('=== DEBUG: Listing all downloaded files ===')
+          for root, dirs, files in os.walk(artifacts_dir):
+              for file in files:
+                  filepath = os.path.join(root, file)
+                  size = os.path.getsize(filepath)
+                  print(f'Found file: {filepath} (size: {size} bytes)')
 
-          for root, dirs, files in os.walk(artifacts_root):
-              for fname in files:
-                  if fname == "weather_cache.json":
-                      path = os.path.join(root, fname)
-                      try:
-                          if os.path.getsize(path) == 0:
-                              print(f"Skipping empty file: {path}")
-                              continue
-                          with open(path, 'r', encoding='utf-8') as f:
-                              data = json.load(f)
-                          if not isinstance(data, dict):
-                              print(f"Skipping non-dict JSON from {path}")
-                              corrupted += 1
-                              continue
-                          # merge (later batches override earlier keys)
-                          combined.update(data)
-                          total_loaded += len(data)
-                          print(f"Loaded {len(data)} entries from {path}")
-                      except Exception as e:
-                          print(f"Error reading {path}: {e}")
-                          corrupted += 1
+          print('=== Loading and merging batch results ===')
+          batch_count = 0
 
-          print(f"Combined total entries: {len(combined)} (loaded sum: {total_loaded}, corrupted files: {corrupted})")
-          # Write combined file
-          with open("weather_cache.json", "w", encoding="utf-8") as out:
-              json.dump(combined, out, ensure_ascii=False, indent=2)
-          # Emit metadata for workflow consumption
-          print(f"::set-output name=entries::{len(combined)}")
-          print(f"::set-output name=corrupted::{corrupted}")
-          PY
+          for root, dirs, files in os.walk(artifacts_dir):
+              for file in files:
+                  if file == 'weather_cache.json':
+                      filepath = os.path.join(root, file)
+                      batch_count += 1
 
-      - name: Validate merged cache (structure & minimal sanity)
-        id: validate
-        run: |
-          python - <<'PY'
-          import json, sys, os, datetime
-
-          def is_valid_entry(v):
-              if not isinstance(v, dict):
-                  return False
-              if 'last_updated' not in v:
-                  return False
-              try:
-                  # quick ISO timestamp parse
-                  datetime.datetime.fromisoformat(v['last_updated'])
-              except Exception:
-                  return False
-              return True
-
-          merged_path = "weather_cache.json"
-          if not os.path.exists(merged_path):
-              print("Merged cache missing")
-              print("::set-output name=valid::false")
-              sys.exit(0)
-
-          try:
-              with open(merged_path, 'r', encoding='utf-8') as f:
-                  merged = json.load(f)
-          except Exception as e:
-              print("Merged cache is not valid JSON:", e)
-              print("::set-output name=valid::false")
-              sys.exit(0)
-
-          if not isinstance(merged, dict):
-              print("Merged cache is not a dict")
-              print("::set-output name=valid::false")
-              sys.exit(0)
-
-          # Minimal checks: not empty and at least some valid entries
-          valid_count = 0
-          total = 0
-          for k, v in merged.items():
-              total += 1
-              if is_valid_entry(v):
-                  valid_count += 1
-
-          print(f"Merged total entries: {total}, valid entries with last_updated: {valid_count}")
-          # Require at least 1 valid entry (you can tighten this threshold)
-          ok = (total > 0 and valid_count >= 1)
-          print(f"::set-output name=valid::{str(ok).lower()}")
-          PY
-
-      # Retrieve previous committed cache (from the checked-out repo)
-      - name: Copy previous committed cache to workspace
-        run: |
-          if [ -f weather_cache.json ]; then
-            cp weather_cache.json previous_cache.json || true
-            echo "Previous committed cache copied to previous_cache.json"
-            echo "Previous cache size:"
-            ls -l previous_cache.json || true
-          else
-            echo "{}" > previous_cache.json
-            echo "No previous cache in repo; created empty previous_cache.json"
-          fi
-
-      - name: Compare new merged cache vs previous
-        id: compare
-        run: |
-          python - <<'PY'
-          import json, sys, os
-
-          def normalize(d):
-              # Keep key ordering independent and trim last_updated precision for robust equality
-              out = {}
-              for k,v in d.items():
-                  if isinstance(v, dict):
-                      # keep only important keys, and normalize last_updated to second resolution
-                      nv = dict(v)
-                      if 'last_updated' in nv:
+                      if os.path.getsize(filepath) > 0:
                           try:
-                              from datetime import datetime
-                              dt = datetime.fromisoformat(nv['last_updated'])
-                              nv['last_updated'] = dt.replace(microsecond=0).isoformat()
-                          except Exception:
-                              nv['last_updated'] = nv.get('last_updated')
-                      out[k] = nv
-                  else:
-                      out[k] = v
-              return out
+                              with open(filepath, 'r', encoding='utf-8') as f:
+                                  batch_data = json.load(f)
 
-          with open("weather_cache.json","r",encoding="utf-8") as f:
-              new = json.load(f)
-          with open("previous_cache.json","r",encoding="utf-8") as f:
-              prev = json.load(f)
+                              combined_data.update(batch_data)
+                              print(f'Batch {batch_count}: Loaded {len(batch_data)} entries from {filepath}')
+                          except Exception as e:
+                              print(f'Batch {batch_count}: Error loading {filepath}: {e}')
+                      else:
+                          print(f'Batch {batch_count}: Empty file {filepath}')
 
-          new_n = normalize(new)
-          prev_n = normalize(prev)
+          print(f'=== SUMMARY ===')
+          print(f'Total batches found: {batch_count}')
+          print(f'Combined cache contains {len(combined_data)} total entries')
+          print(f'First 5 keys in combined cache: {list(combined_data.keys())[:5]}')
 
-          if new_n == prev_n:
-              print("Caches are identical -> no update needed")
-              print("::set-output name=changed::false")
-              sys.exit(0)
-          else:
-              print("Caches differ -> will attempt update")
-              print("::set-output name=changed::true")
-              # report counts
-              print(f"::set-output name=new_count::{len(new)}")
-              print(f"::set-output name=prev_count::{len(prev)}")
-          PY
+          with open('weather_cache.json', 'w', encoding='utf-8') as f:
+              json.dump(combined_data, f, ensure_ascii=False, indent=2)
 
-      - name: Abort if merged cache invalid
-        if: steps.validate.outputs.valid != 'true'
-        run: |
-          echo "Merged cache failed validation; aborting commit to preserve previous cache"
-          echo "Merged file preserved at workspace/weather_cache.json for inspection"
-          exit 0
+          print(f'Successfully saved combined cache with {len(combined_data)} entries')
+          "
 
-      - name: Commit merged cache (only if changed)
-        if: steps.compare.outputs.changed == 'true'
+      - name: Commit changes
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          # Ensure we have latest main to avoid fast-forward issues
-          git fetch origin main:main || true
-          git checkout main || true
-          git pull --rebase origin main || true
-          # Overwrite file in working tree with merged result (already present)
+
           git add weather_cache.json
           if git diff --staged --quiet; then
-            echo "No staged changes to commit"
+            echo "No changes to commit"
           else
-            git commit -m "Update combined weather cache (automated) - $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+            git commit -m "Update weather cache - Combined batches - $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
           fi
 
-      - name: Push merged cache (only if changed)
-        if: steps.compare.outputs.changed == 'true'
+      - name: Pull latest changes
         run: |
-          # Push with retries and rebase to avoid race conditions
+          git stash push --include-untracked -m "stash before pull" || echo "Nothing to stash"
+          git pull --rebase origin main || git pull origin main
+          git stash pop || echo "No stash to pop"
+
+      - name: Push changes with retries
+        run: |
           for i in 1 2 3; do
             if git push origin main; then
               echo "Push succeeded on attempt $i"
-              exit 0
+              break
             else
-              echo "Push failed on attempt $i, pulling and retrying..."
-              git pull --rebase origin main || true
+              echo "Push failed on attempt $i, retrying after pull..."
+              git stash push --include-untracked -m "stash before push retry" || echo "Nothing to stash"
+              git pull --rebase origin main || git pull origin main
+              git stash pop || echo "No stash to pop"
             fi
           done
-          echo "All push attempts failed"
-          exit 1
-
-      - name: Save merged cache snapshot (artifact) for debugging
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: merged-weather-cache
-          path: weather_cache.json
-          retention-days: 3
-
-      - name: Post-update: keep previous cache if no change
-        if: steps.compare.outputs.changed == 'false'
-        run: |
-          echo "No update performed because merged cache is identical to previous committed cache."
-          echo "Nothing to push or save."
-
-      - name: Final status
-        run: |
-          echo "Compare changed = ${{ steps.compare.outputs.changed }}"
-          echo "Validate valid = ${{ steps.validate.outputs.valid }}"
-          echo "Combined entries = ${{ steps.combine.outputs.entries }}"
