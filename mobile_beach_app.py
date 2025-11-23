@@ -21,13 +21,12 @@ from io import StringIO
 
 # Tested and working URLs
 RESOURCES = {
-    "beach_data": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/blueflag_greece_scraped.csv",
-    "weather_cache": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/weather_cache.json",
-    "background_image": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/voidokoilia_edited.jpg",
-    "flag_image": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/blue_flag_image.png",
-    "depth_data": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App/main/beach_depth_database.json"
+    "beach_data": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App./refs/heads/main/blueflag_greece_scraped.csv  ",
+    "weather_cache": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App./refs/heads/main/weather_cache.json  ",
+    "background_image": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App./refs/heads/main/voidokoilia_edited.jpg  ",
+    "flag_image": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App./refs/heads/main/blue_flag_image.png  ",
+    "depth_data": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App./refs/heads/main/beach_depth_database.json  "
 }
-
 # ======================
 # PAGE CONFIG
 # ======================
@@ -526,6 +525,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
