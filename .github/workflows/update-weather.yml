@@ -117,15 +117,15 @@ jobs:
           print(f'Successfully saved combined cache with {len(combined_data)} entries')
           "
 
-      - name: Commit and push changes
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
+           - name: Commit and push changes
+             run: |
+              git config --local user.email "action@github.com"
+              git config --local user.name "GitHub Action"
 
-          git add weather_cache.json
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "Update weather cache - Combined batches - $(date)"
-            git push
-          fi
+              git add weather_cache.json
+              if git diff --staged --quiet; then
+               echo "No changes to commit"
+              else
+               git commit -m "Update weather cache - Combined batches - $(date)"
+               git push --force-with-lease
+              fi
