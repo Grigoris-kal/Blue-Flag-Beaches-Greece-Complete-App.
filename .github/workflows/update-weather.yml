@@ -32,9 +32,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Debug - List files
+        run: ls -la
+
       - name: Run weather updater (Batch ${{ matrix.batch }})
         run: |
-          python weather_updater.py --once --batch-size 30 --batch-number ${{ matrix.batch }}
+          python weather_update.py --once --batch-size 30 --batch-number ${{ matrix.batch }}  # FIXED: weather_update.py
         env:
           GITHUB_ACTIONS: true
           JAWG_TOKEN: ${{ secrets.JAWG_TOKEN }}
@@ -57,16 +60,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
-      - name: Fix remote URL to remove trailing dot
-        run: |
-          url=$(git remote get-url origin)
-          echo "Original remote URL: $url"
-          fixed_url=$(echo "$url" | sed 's/\.$//')
-          echo "Fixed remote URL: $fixed_url"
-          git remote set-url origin "$fixed_url"
-
-      - name: Debug remote URL
-        run: git remote -v
+      # REMOVE the "Fix remote URL" step - it's breaking everything!
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -120,7 +114,6 @@ jobs:
           print(f'=== SUMMARY ===')
           print(f'Total batches found: {batch_count}')
           print(f'Combined cache contains {len(combined_data)} total entries')
-          print(f'First 5 keys in combined cache: {list(combined_data.keys())[:5]}')
 
           with open('weather_cache.json', 'w', encoding='utf-8') as f:
               json.dump(combined_data, f, ensure_ascii=False, indent=2)
@@ -140,22 +133,5 @@ jobs:
             git commit -m "Update weather cache - Combined batches - $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
           fi
 
-      - name: Pull latest changes
-        run: |
-          git stash push --include-untracked -m "stash before pull" || echo "Nothing to stash"
-          git pull --rebase origin main || git pull origin main
-          git stash pop || echo "No stash to pop"
-
-      - name: Push changes with retries
-        run: |
-          for i in 1 2 3; do
-            if git push origin main; then
-              echo "Push succeeded on attempt $i"
-              break
-            else
-              echo "Push failed on attempt $i, retrying after pull..."
-              git stash push --include-untracked -m "stash before push retry" || echo "Nothing to stash"
-              git pull --rebase origin main || git pull origin main
-              git stash pop || echo "No stash to pop"
-            fi
-          done
+      - name: Push changes
+        run: git push origin main
