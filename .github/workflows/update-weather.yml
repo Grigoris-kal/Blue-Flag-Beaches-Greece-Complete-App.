@@ -13,7 +13,7 @@ jobs:
     strategy:
       matrix:
         batch: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]  # 7 batches for ~311 beaches (45 beaches per batch)
-      fail-fast: false  # Don't cancel other batches if one fails
+      fail-fast: false
 
     steps:
       - name: Checkout repository
@@ -58,7 +58,15 @@ jobs:
           fetch-depth: 0
 
       - name: Fix remote URL to remove trailing dot
-        run: git remote set-url origin "https://github.com/${{ github.repository }}.git"
+        run: |
+          url=$(git remote get-url origin)
+          echo "Original remote URL: $url"
+          fixed_url=$(echo "$url" | sed 's/\.$//')
+          echo "Fixed remote URL: $fixed_url"
+          git remote set-url origin "$fixed_url"
+
+      - name: Debug remote URL
+        run: git remote -v
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -120,29 +128,30 @@ jobs:
           print(f'Successfully saved combined cache with {len(combined_data)} entries')
           "
 
-      - name: Commit and push changes
+      - name: Commit changes
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-
-          echo "Remote URLs:"
-          git remote -v
-
-          git pull --rebase origin main || git pull origin main
 
           git add weather_cache.json
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
             git commit -m "Update weather cache - Combined batches - $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
-
-            for i in 1 2 3; do
-              if git push origin main; then
-                echo "Push succeeded on attempt $i"
-                break
-              else
-                echo "Push failed on attempt $i, retrying after pull..."
-                git pull --rebase origin main || git pull origin main
-              fi
-            done
           fi
+
+      - name: Pull latest changes
+        run: |
+          git pull --rebase origin main || git pull origin main
+
+      - name: Push changes with retries
+        run: |
+          for i in 1 2 3; do
+            if git push origin main; then
+              echo "Push succeeded on attempt $i"
+              break
+            else
+              echo "Push failed on attempt $i, retrying after pull..."
+              git pull --rebase origin main || git pull origin main
+            fi
+          done
