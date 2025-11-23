@@ -120,16 +120,29 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
 
-          # Ensure correct remote URL (no trailing dot)
+          # Fix remote URL (remove trailing dot, ensure .git suffix)
           git remote set-url origin "https://github.com/${{ github.repository }}.git"
 
-          # Pull latest changes with rebase to prevent merge commits
-          git pull --rebase origin main
+          echo "Remote URLs:"
+          git remote -v
+
+          # Pull with rebase, fallback to normal pull
+          git pull --rebase origin main || git pull origin main
 
           git add weather_cache.json
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
             git commit -m "Update weather cache - Combined batches - $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
-            git push origin main
+
+            # Retry push up to 3 times if rejected
+            for i in 1 2 3; do
+              if git push origin main; then
+                echo "Push succeeded on attempt $i"
+                break
+              else
+                echo "Push failed on attempt $i, retrying after pull..."
+                git pull --rebase origin main || git pull origin main
+              fi
+            done
           fi
