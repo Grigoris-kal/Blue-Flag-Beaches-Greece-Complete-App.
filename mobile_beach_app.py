@@ -1,4 +1,4 @@
-f#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 Mobile-Optimized Beach Map using PyDeck
 Run this on a different port for mobile users
@@ -531,6 +531,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
