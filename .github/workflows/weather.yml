@@ -104,6 +104,7 @@ jobs:
         run: |
           git config user.email "action@github.com"
           git config user.name "GitHub Action"
+          git pull origin main --rebase  # Added this line only
           git add weather_cache.json
           git commit -m "Update weather cache" || exit 0
           git push
