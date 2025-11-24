@@ -118,7 +118,7 @@ def get_sea_conditions(wave_height):
     except:
         return 'N/A'
 
-@st.cache_data(ttl=14400)
+@st.cache_data(ttl=86400)  # 24 hours - covers twice-daily updates
 def load_resource(resource_name):
     """Universal loader for all resources"""
     url = RESOURCES.get(resource_name)
@@ -234,6 +234,14 @@ def create_mobile_map(df, weather_cache, depth_data):
     )
 
 def main():
+    # Add a refresh button to manually update data if needed
+    col1, col2 = st.columns([3, 1])
+    with col2:
+        if st.button("🔄 Refresh Data", type="secondary"):
+            # Clear all caches
+            st.cache_data.clear()
+            st.rerun()
+    
     # Load all resources
     flag_img = load_resource("flag_image")
     bg_img = load_resource("background_image")
