@@ -118,7 +118,7 @@ def get_sea_conditions(wave_height):
     except:
         return 'N/A'
 
-@st.cache_data(ttl=86400)  # 24 hours - covers twice-daily updates
+@st.cache_data(persist="disk")
 def load_resource(resource_name):
     """Universal loader for all resources"""
     url = RESOURCES.get(resource_name)
