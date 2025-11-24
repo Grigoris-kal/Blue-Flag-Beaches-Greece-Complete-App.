@@ -234,10 +234,6 @@ def create_mobile_map(df, weather_cache, depth_data):
     )
 
     
-    # Load all resources
-    
-    bg_img = load_resource("background_image")
-    )
 
 def main():
     # Load all resources
@@ -535,5 +531,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
