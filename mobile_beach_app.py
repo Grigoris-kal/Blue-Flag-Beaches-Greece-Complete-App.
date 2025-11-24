@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+f#!/usr/bin/env python3
 """
 Mobile-Optimized Beach Map using PyDeck
 Run this on a different port for mobile users
@@ -233,17 +233,9 @@ def create_mobile_map(df, weather_cache, depth_data):
         }
     )
 
-def main():
-    # Add a refresh button to manually update data if needed
-    col1, col2 = st.columns([3, 1])
-    with col2:
-        if st.button("🔄 Refresh Data", type="secondary"):
-            # Clear all caches
-            st.cache_data.clear()
-            st.rerun()
     
     # Load all resources
-    flag_img = load_resource("flag_image")
+    
     bg_img = load_resource("background_image")
     
     # Header with GitHub-hosted image
@@ -537,3 +529,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
