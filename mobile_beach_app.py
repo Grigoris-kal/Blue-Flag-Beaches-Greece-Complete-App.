@@ -237,6 +237,12 @@ def create_mobile_map(df, weather_cache, depth_data):
     # Load all resources
     
     bg_img = load_resource("background_image")
+    )
+
+def main():
+    # Load all resources
+    flag_img = load_resource("flag_image")
+    bg_img = load_resource("background_image")
     
     # Header with GitHub-hosted image
     if flag_img:
@@ -529,4 +535,5 @@ def create_mobile_map(df, weather_cache, depth_data):
 
 if __name__ == "__main__":
     main()
+
 
