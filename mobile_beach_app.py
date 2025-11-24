@@ -155,18 +155,21 @@ def load_resource(resource_name):
 def create_mobile_map(df, weather_cache, depth_data):
     """Create mobile-optimized PyDeck map"""
     
-
     map_data = []
     for _, row in df.iterrows():
         # Round coordinates to match weather cache format (6 decimal places)
-        lat_rounded = round(row['Latitude'], 6)
-        lon_rounded = round(row['Longitude'], 6)
-        weather_key = f"{lat_rounded}_{lon_rounded}"
-        weather = weather_cache.get(weather_key, {})
-
+        weather = {}
+        for decimals in (7, 6, 5, 4, 3):
+            lat_rounded = round(row['Latitude'], decimals)
+            lon_rounded = round(row['Longitude'], decimals)
+            weather_key = f"{lat_rounded}_{lon_rounded}"
+            if weather_key in weather_cache:
+                weather = weather_cache[weather_key]
+                break
+        
         tooltip_text = f"📌 GPS: {row['Latitude']:.4f}, {row['Longitude']:.4f}"
 
-        # Depth data logic
+        # Depth data logic - use the same rounded coordinates
         beach_key = f"{lat_rounded}_{lon_rounded}"
         depth_info = None
         if 'beaches' in depth_data and beach_key in depth_data['beaches']:
@@ -229,6 +232,7 @@ def create_mobile_map(df, weather_cache, depth_data):
             }
         }
     )
+
 def main():
     # Load all resources
     flag_img = load_resource("flag_image")
@@ -420,7 +424,7 @@ def main():
 
     # Display results
     if not df.empty:
-    # Add responsive styling for the map and layout
+        # Add responsive styling for the map and layout
         st.markdown("""
         <style>
         /* Make map larger on desktop/laptop */
@@ -525,12 +529,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
-
