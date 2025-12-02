@@ -52,22 +52,27 @@ jobs:
       - name: Combine weather caches
         run: |
           python -c "
-          import json, os
+          import json, os, traceback
+          
+          def safe_load_json(path):
+              try:
+                  with open(path, 'r', encoding='utf-8') as f:
+                      return json.load(f)
+              except Exception as e:
+                  print(f'❌ Error loading {path}: {e}')
+                  traceback.print_exc()
+                  return {}
           
           # Load existing cache from repository
           existing_cache = {}
           if os.path.exists('weather_cache.json'):
-              try:
-                  with open('weather_cache.json', 'r', encoding='utf-8') as f:
-                      existing_cache = json.load(f)
-                  print(f'Loaded existing cache with {len(existing_cache)} entries')
-              except Exception as e:
-                  print(f'Error loading existing cache: {e}')
+              existing_cache = safe_load_json('weather_cache.json')
+              print(f'📂 Loaded existing cache with {len(existing_cache)} entries')
           
-          # Load and merge all batch results
-          combined_data = existing_cache.copy()  # Start with existing data
+          combined_data = existing_cache.copy()
           artifacts_dir = 'artifacts'
           batch_count = 0
+          total_entries_added = 0
           
           print('=== Loading and merging batch results ===')
           for root, dirs, files in os.walk(artifacts_dir):
@@ -77,27 +82,28 @@ jobs:
                       batch_count += 1
                       
                       if os.path.getsize(filepath) > 0:
-                          try:
-                              with open(filepath, 'r', encoding='utf-8') as f:
-                                  batch_data = json.load(f)
-                              
-                              # MERGE new data with existing cache (overwrite old entries)
+                          batch_data = safe_load_json(filepath)
+                          if batch_data:
+                              before = len(combined_data)
                               combined_data.update(batch_data)
-                              print(f'Batch {batch_count}: Merged {len(batch_data)} entries from {filepath}')
-                          except Exception as e:
-                              print(f'Batch {batch_count}: Error loading {filepath}: {e}')
+                              added = len(combined_data) - before
+                              total_entries_added += added
+                              print(f'✅ Batch {batch_count}: Merged {len(batch_data)} entries, {added} new')
+                          else:
+                              print(f'⚠️ Batch {batch_count}: Failed to parse {filepath}')
                       else:
-                          print(f'Batch {batch_count}: Empty file {filepath}')
+                          print(f'⚠️ Batch {batch_count}: Empty file {filepath}')
           
-          print(f'=== SUMMARY ===')
-          print(f'Total batches found: {batch_count}')
-          print(f'Final cache contains {len(combined_data)} total entries (was {len(existing_cache)})')
+          print('=== SUMMARY ===')
+          print(f'Total batches processed: {batch_count}')
+          print(f'Total new entries added: {total_entries_added}')
+          print(f'Final cache size: {len(combined_data)} entries')
           
           # Save the combined result
           with open('weather_cache.json', 'w', encoding='utf-8') as f:
               json.dump(combined_data, f, ensure_ascii=False, indent=2)
           
-          print(f'Successfully saved combined cache with {len(combined_data)} entries')
+          print(f'💾 Successfully saved combined cache with {len(combined_data)} entries')
           "
 
       - name: Commit and push
