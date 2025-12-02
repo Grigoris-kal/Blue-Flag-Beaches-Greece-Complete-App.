@@ -3,7 +3,10 @@ permissions:
   contents: write
 
 on:
-  workflow_dispatch:
+  schedule:
+    - cron: "0 4 * * *"   # 7 AM Athens (UTC+3, summer time)
+    - cron: "0 14 * * *"  # 5 PM Athens (UTC+3, summer time)
+  workflow_dispatch:        # keep manual trigger option too
 
 jobs:
   update-weather:
