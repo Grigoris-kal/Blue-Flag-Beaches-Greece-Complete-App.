@@ -31,48 +31,11 @@ jobs:
       - name: Run weather updater
         run: python weather_update.py --once --batch-size 10 --batch-number 0
 
-      - name: Upload weather cache artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: weather-cache-batch-0
-          path: weather_cache.json
-
-  combine-and-commit:
-    needs: update-weather
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts/
-
-      - name: Combine caches
-        run: |
-          python -c "
-          import json, os
-          combined = {}
-          for root, dirs, files in os.walk('artifacts'):
-            for file in files:
-              if file == 'weather_cache.json':
-                path = os.path.join(root, file)
-                try:
-                  with open(path) as f:
-                    data = json.load(f)
-                    combined.update(data)
-                except: pass
-          with open('weather_cache.json', 'w') as f:
-            json.dump(combined, f, indent=2)
-          print(f'Combined {len(combined)} entries')
-          "
-
       - name: Commit and push
         run: |
           git config user.email "action@github.com"
           git config user.name "GitHub Action"
           git add weather_cache.json
-          git commit -m "Update weather cache - TEST" || exit 0
+          git commit -m "Update weather cache" || echo "No changes to commit"
+          git pull --rebase
           git push
