@@ -80,9 +80,10 @@ def load_existing_cache() -> Dict[str, Any]:
                 data = json.load(f)
             if isinstance(data, dict):
                 logging.info(f"Loaded existing cache with {len(data)} entries")
+                # NO CLEANING! Just return the data as-is
                 return data
             else:
-                logging.warning("Existing cache file is not a JSON object")
+                logging.warning("Existing cache file is not a JSON object; ignoring")
         except Exception as e:
             logging.warning(f"Failed to load existing cache: {e}")
     return {}
@@ -287,3 +288,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
