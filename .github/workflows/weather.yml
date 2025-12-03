@@ -37,7 +37,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: weather-cache-batch-${{ matrix.batch }}
-          path: weather_cache.json
+          path: weather_cache_batch_${{ matrix.batch }}.json
 
   combine-and-commit:
     needs: update-weather
