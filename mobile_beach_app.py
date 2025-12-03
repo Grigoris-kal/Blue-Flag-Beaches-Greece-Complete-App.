@@ -8,15 +8,101 @@ import streamlit as st
 import pandas as pd
 import pydeck as pdk
 import json
-import os
+import math
 import base64
 import requests
 import time
 from io import StringIO
 
+# ======================
+# WEATHER MATCHING UTILITIES
+# ======================
+
+def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Calculate distance between two points in kilometers."""
+    R = 6371.0  # Earth radius in km
+    
+    lat1_rad = math.radians(lat1)
+    lon1_rad = math.radians(lon1)
+    lat2_rad = math.radians(lat2)
+    lon2_rad = math.radians(lon2)
+    
+    dlat = lat2_rad - lat1_rad
+    dlon = lon2_rad - lon1_rad
+    
+    a = math.sin(dlat / 2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    
+    return R * c
+
+def approximate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Fast approximate distance for short distances (< 100km)."""
+    lat_diff = abs(lat2 - lat1) * 111.0
+    lon_diff = abs(lon2 - lon1) * 111.0 * abs(math.cos(math.radians((lat1 + lat2) / 2)))
+    return math.sqrt(lat_diff**2 + lon_diff**2)
+
+def find_best_weather_match(lat: float, lon: float, weather_cache: dict, max_distance_km: float = 2.0):
+    """
+    Flexible weather data matching using multiple strategies.
+    
+    Strategies tried in order:
+    1. Exact coordinate match
+    2. 7-decimal rounded match (common cache precision)
+    3. Find closest station within max_distance_km
+    4. Progressive rounding (6, 5, 4, 3 decimals)
+    
+    Returns: (weather_data, cache_key_used) or ({}, None)
+    """
+    # Strategy 1: Exact match
+    exact_key = f"{lat}_{lon}"
+    if exact_key in weather_cache:
+        return weather_cache[exact_key], exact_key
+    
+    # Strategy 2: 7-decimal rounded match
+    lat_7 = round(lat, 7)
+    lon_7 = round(lon, 7)
+    rounded_key_7 = f"{lat_7}_{lon_7}"
+    if rounded_key_7 in weather_cache:
+        return weather_cache[rounded_key_7], rounded_key_7
+    
+    # Strategy 3: Find closest station
+    closest_match = None
+    closest_distance = float('inf')
+    closest_key = None
+    
+    for cache_key, weather_data in weather_cache.items():
+        try:
+            cache_lat, cache_lon = map(float, cache_key.split('_'))
+            distance = approximate_distance(lat, lon, cache_lat, cache_lon)
+            
+            if distance < closest_distance and distance <= max_distance_km:
+                closest_distance = distance
+                closest_match = weather_data
+                closest_key = cache_key
+        except:
+            continue
+    
+    if closest_match:
+        return closest_match, closest_key
+    
+    # Strategy 4: Progressive rounding
+    for decimals in (6, 5, 4, 3):
+        lat_rounded = round(lat, decimals)
+        lon_rounded = round(lon, decimals)
+        rounded_key = f"{lat_rounded}_{lon_rounded}"
+        
+        # Also try formatted version
+        formatted_key = f"{lat_rounded:.{decimals}f}_{lon_rounded:.{decimals}f}"
+        
+        if rounded_key in weather_cache:
+            return weather_cache[rounded_key], rounded_key
+        elif formatted_key in weather_cache:
+            return weather_cache[formatted_key], formatted_key
+    
+    return {}, None
 
 # ======================
-# CONFIGURATION (Updated URLs)
+# ORIGINAL APP FUNCTIONS
 # ======================
 
 # Tested and working URLs
@@ -27,6 +113,7 @@ RESOURCES = {
     "flag_image": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App./main/blue_flag_image.png",
     "depth_data": "https://raw.githubusercontent.com/Grigoris-kal/Blue-Flag-Beaches-Greece-Complete-App./main/beach_depth_database.json"
 }
+
 # ======================
 # PAGE CONFIG
 # ======================
@@ -150,34 +237,37 @@ def load_resource(resource_name):
     return None
 
 # ======================
-# MAIN APP LOGIC
+# UPDATED MAP CREATION
 # ======================
 def create_mobile_map(df, weather_cache, depth_data):
-    """Create mobile-optimized PyDeck map"""
+    """Create mobile-optimized PyDeck map with flexible weather matching"""
     
     map_data = []
+    matched_count = 0
+    total_count = len(df)
+    
     for _, row in df.iterrows():
-        # Round coordinates to match weather cache format (6 decimal places)
-        weather = {}
-        for decimals in (7, 6, 5, 4, 3):
-            lat_rounded = round(row['Latitude'], decimals)
-            lon_rounded = round(row['Longitude'], decimals)
-            weather_key = f"{lat_rounded}_{lon_rounded}"
-            if weather_key in weather_cache:
-                weather = weather_cache[weather_key]
-                break
+        lat = row['Latitude']
+        lon = row['Longitude']
         
-        tooltip_text = f"📌 GPS: {row['Latitude']:.4f}, {row['Longitude']:.4f}"
-
-        # Depth data logic - use the same rounded coordinates
-        beach_key = f"{lat_rounded}_{lon_rounded}"
+        # Use flexible matching
+        weather, matched_key = find_best_weather_match(lat, lon, weather_cache, max_distance_km=1.0)
+        
+        if weather:
+            matched_count += 1
+        
+        # Build tooltip
+        tooltip_text = f"📌 GPS: {lat:.4f}, {lon:.4f}"
+        
+        # Depth data - use matched key if available
         depth_info = None
-        if 'beaches' in depth_data and beach_key in depth_data['beaches']:
-            depth_info = depth_data['beaches'][beach_key]['depth_info']
-
+        if matched_key and 'beaches' in depth_data and matched_key in depth_data['beaches']:
+            depth_info = depth_data['beaches'][matched_key].get('depth_info')
+        
         if depth_info and depth_info.get("depth_5m") not in ["Unknown", "Error"]:
             tooltip_text += f"\n🏊 Depth (5m from shore): {depth_info['depth_5m']}m"
-
+        
+        # Add weather data if available
         if weather:
             tooltip_text += f"\n🌡️ Air: {weather.get('air_temp', 'N/A')}°C"
             tooltip_text += f"\n🌊 Sea: {weather.get('sea_temp', 'N/A')}°C"
@@ -185,12 +275,17 @@ def create_mobile_map(df, weather_cache, depth_data):
             tooltip_text += f"\n💨 Wind: {weather.get('wind_speed', 'N/A')} km/h"
             tooltip_text += f"\n🧭 Wind Direction: {get_wind_arrow(weather.get('wind_direction', 'N/A'))}"
             tooltip_text += f"\n🌊 Sea Conditions: {get_sea_conditions(weather.get('wave_height', 'N/A'))}"
-
+            
+            # Indicate if it's an approximate match
+            exact_key = f"{lat}_{lon}"
+            if matched_key != exact_key:
+                tooltip_text += f"\nℹ️ Approximate weather data"
+        
         map_data.append({
-            'lat': row['Latitude'],
-            'lon': row['Longitude'],
-            'name': transliterate_greek_to_latin(row['Name']),  # Convert Greek to Latin
-            'municipality': transliterate_greek_to_latin(row.get('Municipality', '')),  # Convert Greek to Latin
+            'lat': lat,
+            'lon': lon,
+            'name': transliterate_greek_to_latin(row['Name']),
+            'municipality': transliterate_greek_to_latin(row.get('Municipality', '')),
             'tooltip': tooltip_text,
             'color': [0, 100, 200, 200],
             'icon': {
@@ -200,7 +295,15 @@ def create_mobile_map(df, weather_cache, depth_data):
                 'anchorY': 150,
             }
         })
-
+    
+    # Show matching statistics
+    match_rate = (matched_count / total_count * 100) if total_count > 0 else 0
+    st.sidebar.metric("Beaches with weather", f"{matched_count}/{total_count}", f"{match_rate:.1f}%")
+    
+    if matched_count < total_count:
+        st.sidebar.warning(f"{total_count - matched_count} beaches without weather data")
+    
+    # Create the map
     layer = pdk.Layer(
         'IconLayer',
         data=map_data,
@@ -209,13 +312,13 @@ def create_mobile_map(df, weather_cache, depth_data):
         get_size=25,
         pickable=True
     )
-
+    
     return pdk.Deck(
         map_style='https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
         initial_view_state=pdk.ViewState(
-            latitude=39.0742,   # Center of Greece
-            longitude=21.8243,  # Center of Greece  
-            zoom=5.2,           # Perfect zoom to see all Greece + islands on mobile too
+            latitude=39.0742,
+            longitude=21.8243,
+            zoom=5.2,
             pitch=0
         ),
         layers=[layer],
@@ -224,17 +327,18 @@ def create_mobile_map(df, weather_cache, depth_data):
             "style": {
                 "backgroundColor": "rgba(0, 83, 156, 0.95)",
                 "color": "white",
-                "fontSize": "20px",  # 70% bigger than 12px for mobile
-                "padding": "14px",   # 70% bigger padding
+                "fontSize": "20px",
+                "padding": "14px",
                 "borderRadius": "7px",
-                "maxWidth": "425px", # 70% bigger than 250px
+                "maxWidth": "425px",
                 "lineHeight": "1.4"
             }
         }
     )
 
-    
-
+# ======================
+# MAIN APP
+# ======================
 def main():
     # Load all resources
     flag_img = load_resource("flag_image")
@@ -297,7 +401,7 @@ def main():
         </div>
         """, unsafe_allow_html=True)
     
-    # Background from GitHub - clearer image
+    # Background from GitHub
     if bg_img:
         st.markdown(f"""
         <style>
@@ -307,7 +411,6 @@ def main():
             background-position: center;
             background-attachment: fixed;
         }}
-        /* Remove hazy overlay and make background clearer */
         .stApp > .main {{
             background: rgba(255,255,255,0.1);
         }}
@@ -320,7 +423,6 @@ def main():
         weather_cache = load_resource("weather_cache")
         depth_data = load_resource("depth_data")
         
-        
         if df is None:
             df = pd.DataFrame()
         if weather_cache is None:
@@ -328,194 +430,97 @@ def main():
         if depth_data is None:
             depth_data = {}
 
-    # Search functionality with button layout - wider elements
+    # Search functionality
     st.markdown('<div class="search-container">', unsafe_allow_html=True)
-    col1, col2 = st.columns([8, 2])  # 80% for text input, 20% for button - wider overall
+    col1, col2 = st.columns([8, 2])
     
     with col1:
         st.markdown("<div style='margin-top: 17px;'></div>", unsafe_allow_html=True)
         search = st.text_input("🔍 Search beaches", placeholder="Type beach name...", label_visibility="collapsed")
     
     with col2:
-        # Bring button down slightly to align with text input
         st.markdown("<div style='margin-top: 17px;'></div>", unsafe_allow_html=True)
         search_button = st.button("🔍 Search", use_container_width=True)
     
-    st.markdown('</div>', unsafe_allow_html=True)  # Close search-container
+    st.markdown('</div>', unsafe_allow_html=True)
     
-    # Add custom CSS for white background on search input and other styling
+    # Search styling
     st.markdown("""
     <style>
-    /* White background for search input */
     .stTextInput > div > div > input {
         background-color: white !important;
         border: 2px solid #0053ac !important;
         border-radius: 8px !important;
         color: black !important;
-        height: 55px !important;  /* 10% taller than default */
+        height: 55px !important;
         padding: 12px !important;
     }
     
-    /* Darker placeholder text */
     .stTextInput > div > div > input::placeholder {
         color: #555555 !important;
         opacity: 1 !important;
     }
     
-    /* Style the search button - simple dark blue box */
     .stButton > button {
         background-color: #0053ac !important;
         color: white !important;
         border: none !important;
         border-radius: 8px !important;
         font-weight: bold !important;
-        height: 55px !important;  /* Match text input height */
+        height: 55px !important;
     }
     
     .stButton > button:hover {
         background-color: #0077c8 !important;
     }
     
-    /* Custom warning message styling - make completely transparent */
-    .custom-warning {
-        background-color: rgba(255, 255, 255, 0) !important;  /* Completely transparent */
-        color: rgba(0, 0, 0, 0) !important;  /* Invisible text */
-        padding: 0px !important;
-        border: none !important;
-        margin: 0px !important;
-        height: 0px !important;
-        overflow: hidden !important;
-    }
-    
-    /* Hide regular success/info messages but allow custom ones */
-    .stAlert:not(.custom-message) {
-        background-color: rgba(0, 0, 0, 0) !important;
-        color: rgba(0, 0, 0, 0) !important;
-        border: none !important;
-        padding: 0px !important;
-        margin: 0px !important;
-        height: 0px !important;
-        overflow: hidden !important;
-    }
-    
-    /* Desktop styling */
+    /* Desktop styling for wider map */
     @media (min-width: 768px) {
-        .custom-warning {
-            font-size: 72px;  /* 400% larger */
-            padding: 30px;
+        .main .block-container {
+            max-width: none !important;
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+            padding-top: 1rem !important;
+            padding-bottom: 4rem !important;
         }
         
-        /* Make search columns closer */
-        .stTextInput {
-            margin-bottom: -10px;
+        .stDeckGlJsonChart {
+            width: 160% !important;
+            margin-left: -30% !important;
+            position: relative !important;
+            margin-top: -2rem !important;
         }
-    }
-    
-    /* Mobile styling */
-    @media (max-width: 767px) {
-        .custom-warning {
-            font-size: 27px;  /* 50% larger */
-            padding: 20px;
+        
+        .stDeckGlJsonChart > div {
+            height: 71.5vh !important;
+            width: 100% !important;
+            margin-bottom: 4rem !important;
+        }
+        
+        .search-container {
+            width: 160% !important;
+            margin-left: -30% !important;
+            margin-top: -50% !important;
+            margin-bottom: 2rem !important;
+            position: relative !important;
+            z-index: 10 !important;
         }
     }
     </style>
     """, unsafe_allow_html=True)
+    
     if search and not df.empty:
         mask = (df['Name'].str.contains(search, case=False, na=False))
         df = df[mask]
 
     # Display results
     if not df.empty:
-        # Add responsive styling for the map and layout
-        st.markdown("""
-        <style>
-        /* Make map larger on desktop/laptop */
-        @media (min-width: 768px) {
-            /* Override Streamlit's container width restrictions */
-            .main .block-container {
-                max-width: none !important;
-                padding-left: 1rem !important;
-                padding-right: 1rem !important;
-                padding-top: 1rem !important;
-                padding-bottom: 4rem !important;
-            }
-            
-            /* Make map 60% wider and move up more */
-            .stDeckGlJsonChart {
-                width: 160% !important;  /* 60% wider (40% more than current) */
-                margin-left: -30% !important;  /* Center the wider map */
-                position: relative !important;
-                margin-top: -2rem !important;  /* Move map up more */
-            }
-            
-            .stDeckGlJsonChart > div {
-                height: 71.5vh !important;  /* Even shorter for more space below */
-                width: 100% !important;
-                margin-bottom: 4rem !important; /* Even more space below map */
-            }
-            
-            /* Make tooltips much larger on desktop/laptop */
-            .deck-tooltip {
-                font-size: 24px !important;
-                padding: 16px !important;
-                max-width: 500px !important;
-                border-radius: 8px !important;
-            }
-            
-            /* Make search container wider and move higher */
-            .search-container {
-                width: 160% !important;  /* Match new map width */
-                margin-left: -30% !important;  /* Center with map */
-                margin-top: -50% !important;  /* Move 50% higher (25% more) */
-                margin-bottom: 2rem !important;
-                position: relative !important;
-                z-index: 10 !important;
-            }
-            
-            /* Make search elements even larger and fix button alignment */
-            .stTextInput > div > div > input {
-                font-size: 20px !important;  /* Larger font */
-                padding: 15px !important;    /* More padding */
-                height: 55px !important;     /* Taller input */
-                width: 100% !important;      /* Full width of column */
-            }
-            
-            .stButton > button {
-                font-size: 20px !important;  /* Larger font */
-                padding: 15px 25px !important; /* More padding */
-                height: 55px !important;     /* Same height as input */
-                margin-top: 0px !important;  /* Align with input */
-                width: 100% !important;      /* Full width of column */
-            }
-            
-            /* Fix button container alignment on desktop */
-            .search-container .stButton {
-                margin-top: -16px !important;  /* Move button up more to align perfectly */
-            }
-            
-            /* Ensure search container uses full available width */
-            .search-container > div {
-                width: 100% !important;
-            }
-            
-            /* Make funny message 100% larger on desktop */
-            .beach-not-found-message {
-                font-size: 38px !important;  /* 100% larger than 18px */
-                padding: 42px !important;    /* Larger padding too */
-            }
-        }
-        </style>
-        """, unsafe_allow_html=True)
-        
         st.pydeck_chart(create_mobile_map(df, weather_cache, depth_data), use_container_width=True)
-        
-        # Add some space and then show the message at the bottom
         st.markdown("<br>", unsafe_allow_html=True)
         st.success(f"Showing {len(df)} beaches")
     else:
-        # Show the funny message in a dark blue box for visibility
         st.markdown("""
-        <div class="beach-not-found-message" style="
+        <div style="
             background-color: #0053ac; 
             color: white; 
             padding: 20px; 
@@ -531,7 +536,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
-
