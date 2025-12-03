@@ -49,6 +49,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts/
+          if-no-files-found: warn
 
       - name: Combine weather caches
         run: |
