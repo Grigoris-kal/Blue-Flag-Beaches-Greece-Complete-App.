@@ -516,8 +516,8 @@ def main():
     # Display results
     if not df.empty:
         st.pydeck_chart(create_mobile_map(df, weather_cache, depth_data), use_container_width=True)
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.success(f"Showing {len(df)} beaches")
+        
+        
     else:
         st.markdown("""
         <div style="
@@ -536,3 +536,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
