@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Weather Updater for Blue Flag Beaches Greece - FIXED VERSION
-Single precision keys only to avoid duplication issues
+NO DATA DELETION - Cache entries are kept forever
 """
 
 from __future__ import annotations
@@ -13,11 +13,9 @@ import pandas as pd
 import requests
 import json
 import time
-from datetime import datetime, timedelta
-import psutil
+from datetime import datetime
 from ratelimit import limits, sleep_and_retry
-from typing import Dict, Any, Optional, Set
-import hashlib
+from typing import Dict, Any, Optional
 
 # ---------- Early parse for data_dir ----------
 parser = argparse.ArgumentParser(add_help=False)
@@ -53,8 +51,8 @@ CACHE_CONFIG = {
 
 # ---------- Rate Limiting ----------
 @sleep_and_retry
-@limits(calls=25, period=60)  # Slightly more conservative
-def call_api(url: str, retry_count: int = 0) -> Any:
+@limits(calls=25, period=60)
+def call_api(url: str) -> Any:
     """API call with retry logic"""
     for attempt in range(CACHE_CONFIG['max_retries']):
         try:
@@ -70,9 +68,9 @@ def call_api(url: str, retry_count: int = 0) -> Any:
                 logging.error(f"API call failed after {CACHE_CONFIG['max_retries']} attempts: {e}")
                 raise
 
-# ---------- Cache Management ----------
+# ---------- Cache Management (NO CLEANING) ----------
 def load_existing_cache() -> Dict[str, Any]:
-    """Load existing cache"""
+    """Load existing cache WITHOUT DELETING ANYTHING"""
     cache_path = os.path.join(data_dir, "weather_cache.json")
     if os.path.exists(cache_path):
         try:
@@ -80,10 +78,10 @@ def load_existing_cache() -> Dict[str, Any]:
                 data = json.load(f)
             if isinstance(data, dict):
                 logging.info(f"Loaded existing cache with {len(data)} entries")
-                # NO CLEANING! Just return the data as-is
+                # NO CLEANING - return data as-is
                 return data
             else:
-                logging.warning("Existing cache file is not a JSON object; ignoring")
+                logging.warning("Existing cache file is not a JSON object")
         except Exception as e:
             logging.warning(f"Failed to load existing cache: {e}")
     return {}
@@ -101,7 +99,7 @@ def save_batch_cache(batch_data: Dict[str, Any], batch_num: int) -> None:
         # Also save a combined version for debugging
         combined_path = os.path.join(data_dir, "weather_cache.json")
         existing = load_existing_cache()
-        existing.update(batch_data)
+        existing.update(batch_data)  # This adds/updates, never deletes
         
         with open(combined_path, 'w', encoding='utf-8') as f:
             json.dump(existing, f, ensure_ascii=False, indent=2)
@@ -132,7 +130,7 @@ def load_beaches() -> pd.DataFrame:
     df['Longitude'] = pd.to_numeric(df['Longitude'], errors='coerce')
     df = df.dropna(subset=['Latitude', 'Longitude'])
     
-    # Create consistent key
+    # Create consistent key (7 decimal precision)
     df['cache_key'] = df.apply(
         lambda row: f"{row['Latitude']:.7f}_{row['Longitude']:.7f}", 
         axis=1
@@ -217,18 +215,19 @@ def process_batch(batch_size: Optional[int] = None, batch_number: Optional[int] 
         row = df.iloc[idx]
         cache_key = row['cache_key']
         
-        # Check if update is needed
+        # Check if update is needed (older than 6 hours)
         needs_update = True
         if cache_key in existing_cache:
             try:
                 last_updated = existing_cache[cache_key].get('last_updated')
                 if last_updated:
                     last_dt = datetime.fromisoformat(last_updated)
-                    if datetime.now() - last_dt < timedelta(hours=CACHE_CONFIG['weather_hours']):
+                    hours_old = (datetime.now() - last_dt).total_seconds() / 3600.0
+                    if hours_old < CACHE_CONFIG['weather_hours']:  # 6 hours
                         needs_update = False
-                        logging.debug(f"Skipping {row['Name']} - recently updated")
-            except Exception:
-                pass
+                        logging.debug(f"Skipping {row['Name']} - updated {hours_old:.1f} hours ago")
+            except Exception as e:
+                logging.debug(f"Error checking update time for {row['Name']}: {e}")
         
         if needs_update:
             logging.info(f"Updating {row['Name']}...")
@@ -236,13 +235,16 @@ def process_batch(batch_size: Optional[int] = None, batch_number: Optional[int] 
             if entry:
                 batch_updates[cache_key] = entry
                 time.sleep(0.5)  # Small delay between updates
+        else:
+            # Keep existing data - NO DELETION
+            batch_updates[cache_key] = existing_cache[cache_key]
     
-    logging.info(f"Batch completed: {len(batch_updates)} updates")
+    logging.info(f"Batch completed: {len(batch_updates)} entries (updates + existing)")
     return batch_updates
 
 # ---------- Main ----------
 def main():
-    parser = argparse.ArgumentParser(description="Weather Updater - Fixed version")
+    parser = argparse.ArgumentParser(description="Weather Updater - NO DATA DELETION")
     parser.add_argument('--once', action='store_true', help='Run once and exit')
     parser.add_argument('--interval', type=int, default=480, help='Interval minutes for continuous run')
     parser.add_argument('--batch-size', type=int, help='Batch size for partial processing')
@@ -288,4 +290,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
