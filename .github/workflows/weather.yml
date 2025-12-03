@@ -13,7 +13,7 @@ jobs:
     strategy:
       matrix:
         batch: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-      fail-fast: false
+      fail-fast: false  # Good! Continues if one batch fails
 
     steps:
       - name: Checkout repository
@@ -29,16 +29,19 @@ jobs:
 
       - name: Run weather updater
         run: python ./weather_updater.py --once --batch-size 30 --batch-number ${{ matrix.batch }}
+        # Add timeout to prevent hanging
+        timeout-minutes: 30
 
       - name: Upload weather cache artifact
-        uses: actions/upload-artifact@v4
+        if: always()  # Upload even if step fails
+        uses: actions/download-artifact@v4
         with:
           name: weather-cache-batch-${{ matrix.batch }}
           path: weather_cache.json
 
   combine-and-commit:
     needs: update-weather
-    if: always()
+    if: always()  # <-- CRITICAL FIX: Run even if some batches fail
     runs-on: ubuntu-latest
 
     steps:
@@ -49,7 +52,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts/
-          if-no-files-found: warn
+          if-no-files-found: warn  # Warn instead of fail if no artifacts
 
       - name: Combine weather caches
         run: |
@@ -77,41 +80,77 @@ jobs:
           total_entries_added = 0
 
           print('=== Loading and merging batch results ===')
-          for root, dirs, files in os.walk(artifacts_dir):
-              for file in files:
-                  if file == 'weather_cache.json':
-                      filepath = os.path.join(root, file)
-                      batch_count += 1
+          # Check if artifacts directory exists
+          if not os.path.exists(artifacts_dir):
+              print('⚠️ No artifacts directory found - using existing cache only')
+          else:
+              for root, dirs, files in os.walk(artifacts_dir):
+                  for file in files:
+                      if file == 'weather_cache.json':
+                          filepath = os.path.join(root, file)
+                          batch_count += 1
 
-                      if os.path.getsize(filepath) > 0:
-                          batch_data = safe_load_json(filepath)
-                          if batch_data:
-                              before = len(combined_data)
-                              combined_data.update(batch_data)
-                              added = len(combined_data) - before
-                              total_entries_added += added
-                              print(f'✅ Batch {batch_count}: Merged {len(batch_data)} entries, {added} new')
+                          if os.path.getsize(filepath) > 0:
+                              batch_data = safe_load_json(filepath)
+                              if batch_data:
+                                  before = len(combined_data)
+                                  combined_data.update(batch_data)
+                                  added = len(combined_data) - before
+                                  total_entries_added += added
+                                  print(f'✅ Batch {batch_count}: Merged {len(batch_data)} entries, {added} new')
+                              else:
+                                  print(f'⚠️ Batch {batch_count}: Failed to parse {filepath}')
                           else:
-                              print(f'⚠️ Batch {batch_count}: Failed to parse {filepath}')
-                      else:
-                          print(f'⚠️ Batch {batch_count}: Empty file {filepath}')
+                              print(f'⚠️ Batch {batch_count}: Empty file {filepath}')
 
           print('=== SUMMARY ===')
           print(f'Total batches processed: {batch_count}')
           print(f'Total new entries added: {total_entries_added}')
           print(f'Final cache size: {len(combined_data)} entries')
 
-          # Save the combined result
-          with open('weather_cache.json', 'w', encoding='utf-8') as f:
-              json.dump(combined_data, f, ensure_ascii=False, indent=2)
-
-          print(f'💾 Successfully saved combined cache with {len(combined_data)} entries')
+          # Only save if we have data
+          if combined_data:
+              with open('weather_cache.json', 'w', encoding='utf-8') as f:
+                  json.dump(combined_data, f, ensure_ascii=False, indent=2)
+              print(f'💾 Successfully saved combined cache with {len(combined_data)} entries')
+          else:
+              print('❌ No data to save - keeping existing cache')
           "
 
-      - name: Commit and push
+      - name: Check for changes
+        id: check-changes
         run: |
+          git status
+          if git diff --quiet weather_cache.json; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "🟡 No changes detected"
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "🟢 Changes detected"
+          fi
+
+      - name: Commit and push
+        if: steps.check-changes.outputs.has_changes == 'true'
+        run: |
+          # Configure git
           git config user.email "action@github.com"
           git config user.name "GitHub Action"
+          
+          # Pull latest changes first to avoid conflicts
+          git pull origin main --rebase --autostash
+          
+          # Add and commit
           git add weather_cache.json
-          git commit -m "Update weather cache" || echo "🟡 No changes to commit"
-          git push || echo "🔴 Push skipped or failed"
+          git commit -m "Update weather cache - $(date +'%Y-%m-%d %H:%M')"
+          
+          # Push with retry logic
+          for i in {1..3}; do
+            if git push; then
+              echo "✅ Successfully pushed changes"
+              break
+            else
+              echo "🔄 Push attempt $i failed, pulling latest and retrying..."
+              sleep 5
+              git pull origin main --rebase --autostash
+            fi
+          done
