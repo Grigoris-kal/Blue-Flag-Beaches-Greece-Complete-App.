@@ -38,6 +38,7 @@ jobs:
 
   combine-and-commit:
     needs: update-weather
+    if: always()
     runs-on: ubuntu-latest
 
     steps:
