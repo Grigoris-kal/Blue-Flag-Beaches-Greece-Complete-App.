@@ -154,7 +154,6 @@ if __name__ == "__main__":
 EOF
           
           echo "✅ Weather update completed"
-        timeout-minutes: 30
 
       - name: Verify cache was updated
         run: |
