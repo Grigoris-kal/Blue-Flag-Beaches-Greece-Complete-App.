@@ -392,8 +392,7 @@ def continuous_update(interval_minutes=480):
             logging.error(f"Update cycle failed: {str(e)}")
             time.sleep(300)
 
-if __name__ == "__main__":
-    # Reparse args with full help and adding data-dir
+def main():
     parser = argparse.ArgumentParser(description='Optimized Weather Updater')
     parser.add_argument('--once', action='store_true', help='Run once and exit')
     parser.add_argument('--interval', type=int, default=480, help='Update interval in minutes')
@@ -411,3 +410,6 @@ if __name__ == "__main__":
         update_weather_cache(args.batch_size, args.batch_number)
     else:
         continuous_update(args.interval)
+
+if __name__ == "__main__":
+    main()
