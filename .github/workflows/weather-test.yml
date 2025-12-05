@@ -15,7 +15,7 @@ jobs:
         run: |
           echo "=== TEST STARTING ==="
           
-          python3 -c "
+          python3 << 'EOF'
 import pandas as pd
 import json
 import os
@@ -65,7 +65,7 @@ except Exception as e:
     print(f'   ❌ API test failed: {e}')
 
 print('🎉 TEST COMPLETE')
-          "
+EOF
           
       - name: Show result
         run: |
