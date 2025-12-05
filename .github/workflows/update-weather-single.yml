@@ -1,3 +1,12 @@
+name: Update Weather Data (Single Job)
+permissions:
+  contents: write
+
+on:
+  schedule:
+    - cron: '0 7,14 * * *'  # 7:00 AM and 2:00 PM UTC daily
+  workflow_dispatch:  # Allows manual trigger
+
 jobs:
   update-all-weather:
     runs-on: ubuntu-latest
@@ -23,7 +32,6 @@ jobs:
         run: |
           echo "🔄 Starting weather update for ALL beaches..."
           
-          # Create and run Python script directly
           python3 << 'EOF'
 import os
 import json
