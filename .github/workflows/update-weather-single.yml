@@ -33,193 +33,193 @@ jobs:
           echo "🔄 Starting SMART weather update rotation..."
           
           python3 << 'EOF'
-import os
-import json
-import pandas as pd
-import requests
-import time
-import logging
-from datetime import datetime
-
-# Setup logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
-
-def update_weather():
-    """Update weather for all beaches using smart rotation."""
-    
-    # Load beaches CSV
-    try:
-        df = pd.read_csv('blueflag_greece_scraped.csv')
-        logging.info(f"✅ Loaded {len(df)} beaches from CSV")
-    except Exception as e:
-        logging.error(f"❌ Failed to load CSV: {e}")
-        return
-    
-    # Clean data - remove beaches without coordinates
-    df['Latitude'] = pd.to_numeric(df['Latitude'], errors='coerce')
-    df['Longitude'] = pd.to_numeric(df['Longitude'], errors='coerce')
-    df = df.dropna(subset=['Latitude', 'Longitude'])
-    
-    # Remove invalid coordinates (0,0 or out of Greece bounds)
-    df = df[(df['Latitude'] != 0) & (df['Longitude'] != 0)]
-    df = df[df['Latitude'].between(34, 42) & df['Longitude'].between(19, 29)]
-    
-    logging.info(f"🔄 Filtered to {len(df)} beaches with valid coordinates")
-    
-    if 'Name' not in df.columns:
-        logging.error("❌ CSV missing 'Name' column")
-        return
-    
-    # Load existing cache
-    cache = {}
-    if os.path.exists('weather_cache.json'):
-        try:
-            with open('weather_cache.json', 'r', encoding='utf-8') as f:
-                cache = json.load(f)
-            logging.info(f"📂 Loaded existing cache with {len(cache)} entries")
-        except Exception as e:
-            logging.warning(f"⚠️ Could not load cache: {e}")
-    
-    # SMART ROTATION LOGIC
-    BEACHES_PER_RUN = 100  # Update 100 beaches per run
-    OLD_THRESHOLD_DAYS = 1  # Update if older than 1 day
-    total_beaches = len(df)
-    
-    # Categorize beaches
-    beaches_to_update = []
-    recent_beaches = []
-    new_beaches = []
-    
-    for idx, row in df.iterrows():
-        try:
-            beach_name = str(row['Name'])
-            lat = float(row['Latitude'])
-            lon = float(row['Longitude'])
-            
-            key = f"{lat:.6f}_{lon:.6f}"
-            
-            if key in cache:
-                # Check when last updated
-                last_update_str = cache[key].get('last_updated', '')
-                try:
-                    if last_update_str and last_update_str != 'N/A':
-                        last_update = datetime.fromisoformat(last_update_str.replace('Z', '+00:00'))
-                        days_since_update = (datetime.now() - last_update).days
-                        
-                        if days_since_update >= OLD_THRESHOLD_DAYS:
-                            beaches_to_update.append((idx, row, key, f"old ({days_since_update}d ago)"))
-                        else:
-                            recent_beaches.append(key)
-                    else:
-                        beaches_to_update.append((idx, row, key, "no timestamp"))
-                except:
-                    beaches_to_update.append((idx, row, key, "invalid timestamp"))
-            else:
-                # New beach - always update
-                new_beaches.append((idx, row, key, "new beach"))
-        
-        except Exception as e:
-            logging.warning(f"⚠️ Error categorizing beach {idx}: {e}")
-    
-    # Combine lists: new beaches first, then old beaches
-    beaches_to_update = new_beaches + beaches_to_update
-    
-    logging.info(f"📊 Update plan: {len(new_beaches)} new, {len(beaches_to_update)-len(new_beaches)} old, {len(recent_beaches)} recent")
-    
-    # Limit to BEACHES_PER_RUN to avoid timeout
-    if len(beaches_to_update) > BEACHES_PER_RUN:
-        logging.info(f"📋 Updating first {BEACHES_PER_RUN} of {len(beaches_to_update)} beaches in queue")
-        beaches_to_update = beaches_to_update[:BEACHES_PER_RUN]
-    
-    updated = 0
-    errors = 0
-    
-    # Process selected beaches
-    for idx, row, key, reason in beaches_to_update:
-        try:
-            beach_name = str(row['Name'])
-            lat = float(row['Latitude'])
-            lon = float(row['Longitude'])
-            
-            logging.info(f"🔄 Updating {beach_name} ({reason})")
-            
-            # Get weather data
-            weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,wind_speed_10m,wind_direction_10m&timezone=auto"
-            weather_response = requests.get(weather_url, timeout=15)
-            weather_response.raise_for_status()
-            weather_data = weather_response.json()
-            
-            time.sleep(0.1)
-            
-            # Get marine data
-            marine_url = f"https://marine-api.open-meteo.com/v1/marine?latitude={lat}&longitude={lon}&current=wave_height,wave_direction,wave_period,sea_surface_temperature"
-            marine_response = requests.get(marine_url, timeout=15)
-            marine_response.raise_for_status()
-            marine_data = marine_response.json()
-            
-            # Extract values
-            current_weather = weather_data.get('current', {})
-            current_marine = marine_data.get('current', {})
-            
-            # Create entry
-            entry = {
-                'beach_name': beach_name,
-                'latitude': lat,
-                'longitude': lon,
-                'air_temp': round(current_weather.get('temperature_2m', 'N/A'), 1) if current_weather.get('temperature_2m') is not None else 'N/A',
-                'wind_speed': round(current_weather.get('wind_speed_10m', 'N/A'), 1) if current_weather.get('wind_speed_10m') is not None else 'N/A',
-                'wind_direction': current_weather.get('wind_direction_10m', 'N/A'),
-                'wave_height': round(current_marine.get('wave_height', 'N/A'), 1) if current_marine.get('wave_height') is not None else 'N/A',
-                'wave_direction': current_marine.get('wave_direction', 'N/A'),
-                'wave_period': round(current_marine.get('wave_period', 'N/A'), 1) if current_marine.get('wave_period') is not None else 'N/A',
-                'sea_temp': round(current_marine.get('sea_surface_temperature', 'N/A'), 1) if current_marine.get('sea_surface_temperature') is not None else 'N/A',
-                'last_updated': datetime.now().isoformat(),
-                'update_reason': reason
-            }
-            
-            # Update cache
-            cache[key] = entry
-            updated += 1
-            
-            # Rate limiting
-            time.sleep(0.1)
-            
-        except requests.exceptions.RequestException as e:
-            logging.error(f"⚠️ API error for beach {idx}: {e}")
-            errors += 1
-            time.sleep(1)
-        except Exception as e:
-            logging.error(f"❌ Error processing beach {idx}: {e}")
-            errors += 1
-    
-    # Save cache
-    try:
-        with open('weather_cache.json', 'w', encoding='utf-8') as f:
-            json.dump(cache, f, ensure_ascii=False, indent=2)
-        
-        # Calculate statistics
-        total_in_cache = len(cache)
-        beaches_in_csv = len(df)
-        coverage = (total_in_cache / beaches_in_csv * 100) if beaches_in_csv > 0 else 0
-        
-        logging.info(f"💾 Saved cache with {total_in_cache} entries")
-        logging.info(f"📈 Coverage: {coverage:.1f}% ({total_in_cache}/{beaches_in_csv} beaches)")
-        logging.info(f"🔄 This run: {updated} updated, {errors} errors")
-        
-        # Show update forecast
-        remaining = beaches_in_csv - total_in_cache
-        if remaining > 0:
-            runs_needed = remaining / BEACHES_PER_RUN
-            logging.info(f"📅 Forecast: ~{runs_needed:.1f} runs to cover all beaches")
-        else:
-            logging.info("🎉 All beaches have weather data!")
-        
-    except Exception as e:
-        logging.error(f"❌ Failed to save cache: {e}")
-
-if __name__ == "__main__":
-    update_weather()
-EOF
+          import os
+          import json
+          import pandas as pd
+          import requests
+          import time
+          import logging
+          from datetime import datetime
+          
+          # Setup logging
+          logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
+          
+          def update_weather():
+              """Update weather for all beaches using smart rotation."""
+              
+              # Load beaches CSV
+              try:
+                  df = pd.read_csv('blueflag_greece_scraped.csv')
+                  logging.info(f"✅ Loaded {len(df)} beaches from CSV")
+              except Exception as e:
+                  logging.error(f"❌ Failed to load CSV: {e}")
+                  return
+              
+              # Clean data - remove beaches without coordinates
+              df['Latitude'] = pd.to_numeric(df['Latitude'], errors='coerce')
+              df['Longitude'] = pd.to_numeric(df['Longitude'], errors='coerce')
+              df = df.dropna(subset=['Latitude', 'Longitude'])
+              
+              # Remove invalid coordinates (0,0 or out of Greece bounds)
+              df = df[(df['Latitude'] != 0) & (df['Longitude'] != 0)]
+              df = df[df['Latitude'].between(34, 42) & df['Longitude'].between(19, 29)]
+              
+              logging.info(f"🔄 Filtered to {len(df)} beaches with valid coordinates")
+              
+              if 'Name' not in df.columns:
+                  logging.error("❌ CSV missing 'Name' column")
+                  return
+              
+              # Load existing cache
+              cache = {}
+              if os.path.exists('weather_cache.json'):
+                  try:
+                      with open('weather_cache.json', 'r', encoding='utf-8') as f:
+                          cache = json.load(f)
+                      logging.info(f"📂 Loaded existing cache with {len(cache)} entries")
+                  except Exception as e:
+                      logging.warning(f"⚠️ Could not load cache: {e}")
+              
+              # SMART ROTATION LOGIC
+              BEACHES_PER_RUN = 100  # Update 100 beaches per run
+              OLD_THRESHOLD_DAYS = 1  # Update if older than 1 day
+              total_beaches = len(df)
+              
+              # Categorize beaches
+              beaches_to_update = []
+              recent_beaches = []
+              new_beaches = []
+              
+              for idx, row in df.iterrows():
+                  try:
+                      beach_name = str(row['Name'])
+                      lat = float(row['Latitude'])
+                      lon = float(row['Longitude'])
+                      
+                      key = f"{lat:.6f}_{lon:.6f}"
+                      
+                      if key in cache:
+                          # Check when last updated
+                          last_update_str = cache[key].get('last_updated', '')
+                          try:
+                              if last_update_str and last_update_str != 'N/A':
+                                  last_update = datetime.fromisoformat(last_update_str.replace('Z', '+00:00'))
+                                  days_since_update = (datetime.now() - last_update).days
+                                  
+                                  if days_since_update >= OLD_THRESHOLD_DAYS:
+                                      beaches_to_update.append((idx, row, key, f"old ({days_since_update}d ago)"))
+                                  else:
+                                      recent_beaches.append(key)
+                              else:
+                                  beaches_to_update.append((idx, row, key, "no timestamp"))
+                          except:
+                              beaches_to_update.append((idx, row, key, "invalid timestamp"))
+                      else:
+                          # New beach - always update
+                          new_beaches.append((idx, row, key, "new beach"))
+                  
+                  except Exception as e:
+                      logging.warning(f"⚠️ Error categorizing beach {idx}: {e}")
+              
+              # Combine lists: new beaches first, then old beaches
+              beaches_to_update = new_beaches + beaches_to_update
+              
+              logging.info(f"📊 Update plan: {len(new_beaches)} new, {len(beaches_to_update)-len(new_beaches)} old, {len(recent_beaches)} recent")
+              
+              # Limit to BEACHES_PER_RUN to avoid timeout
+              if len(beaches_to_update) > BEACHES_PER_RUN:
+                  logging.info(f"📋 Updating first {BEACHES_PER_RUN} of {len(beaches_to_update)} beaches in queue")
+                  beaches_to_update = beaches_to_update[:BEACHES_PER_RUN]
+              
+              updated = 0
+              errors = 0
+              
+              # Process selected beaches
+              for idx, row, key, reason in beaches_to_update:
+                  try:
+                      beach_name = str(row['Name'])
+                      lat = float(row['Latitude'])
+                      lon = float(row['Longitude'])
+                      
+                      logging.info(f"🔄 Updating {beach_name} ({reason})")
+                      
+                      # Get weather data
+                      weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,wind_speed_10m,wind_direction_10m&timezone=auto"
+                      weather_response = requests.get(weather_url, timeout=15)
+                      weather_response.raise_for_status()
+                      weather_data = weather_response.json()
+                      
+                      time.sleep(0.1)
+                      
+                      # Get marine data
+                      marine_url = f"https://marine-api.open-meteo.com/v1/marine?latitude={lat}&longitude={lon}&current=wave_height,wave_direction,wave_period,sea_surface_temperature"
+                      marine_response = requests.get(marine_url, timeout=15)
+                      marine_response.raise_for_status()
+                      marine_data = marine_response.json()
+                      
+                      # Extract values
+                      current_weather = weather_data.get('current', {})
+                      current_marine = marine_data.get('current', {})
+                      
+                      # Create entry
+                      entry = {
+                          'beach_name': beach_name,
+                          'latitude': lat,
+                          'longitude': lon,
+                          'air_temp': round(current_weather.get('temperature_2m', 'N/A'), 1) if current_weather.get('temperature_2m') is not None else 'N/A',
+                          'wind_speed': round(current_weather.get('wind_speed_10m', 'N/A'), 1) if current_weather.get('wind_speed_10m') is not None else 'N/A',
+                          'wind_direction': current_weather.get('wind_direction_10m', 'N/A'),
+                          'wave_height': round(current_marine.get('wave_height', 'N/A'), 1) if current_marine.get('wave_height') is not None else 'N/A',
+                          'wave_direction': current_marine.get('wave_direction', 'N/A'),
+                          'wave_period': round(current_marine.get('wave_period', 'N/A'), 1) if current_marine.get('wave_period') is not None else 'N/A',
+                          'sea_temp': round(current_marine.get('sea_surface_temperature', 'N/A'), 1) if current_marine.get('sea_surface_temperature') is not None else 'N/A',
+                          'last_updated': datetime.now().isoformat(),
+                          'update_reason': reason
+                      }
+                      
+                      # Update cache
+                      cache[key] = entry
+                      updated += 1
+                      
+                      # Rate limiting
+                      time.sleep(0.1)
+                      
+                  except requests.exceptions.RequestException as e:
+                      logging.error(f"⚠️ API error for beach {idx}: {e}")
+                      errors += 1
+                      time.sleep(1)
+                  except Exception as e:
+                      logging.error(f"❌ Error processing beach {idx}: {e}")
+                      errors += 1
+              
+              # Save cache
+              try:
+                  with open('weather_cache.json', 'w', encoding='utf-8') as f:
+                      json.dump(cache, f, ensure_ascii=False, indent=2)
+                  
+                  # Calculate statistics
+                  total_in_cache = len(cache)
+                  beaches_in_csv = len(df)
+                  coverage = (total_in_cache / beaches_in_csv * 100) if beaches_in_csv > 0 else 0
+                  
+                  logging.info(f"💾 Saved cache with {total_in_cache} entries")
+                  logging.info(f"📈 Coverage: {coverage:.1f}% ({total_in_cache}/{beaches_in_csv} beaches)")
+                  logging.info(f"🔄 This run: {updated} updated, {errors} errors")
+                  
+                  # Show update forecast
+                  remaining = beaches_in_csv - total_in_cache
+                  if remaining > 0:
+                      runs_needed = remaining / BEACHES_PER_RUN
+                      logging.info(f"📅 Forecast: ~{runs_needed:.1f} runs to cover all beaches")
+                  else:
+                      logging.info("🎉 All beaches have weather data!")
+                  
+              except Exception as e:
+                  logging.error(f"❌ Failed to save cache: {e}")
+          
+          if __name__ == "__main__":
+              update_weather()
+          EOF
           
           echo "✅ Weather update completed"
 
@@ -253,7 +253,7 @@ EOF
           
           git pull origin main --rebase --autostash || git pull origin main
           git add weather_cache.json
-          git commit -m "Update weather cache - $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git commit -m "Update weather cache - $(date -u +'%Y-%m-d %H:%M UTC')"
           
           for i in {1..3}; do
             if git push; then
