@@ -1,12 +1,3 @@
-name: Update Weather Data (Single Job)
-permissions:
-  contents: write
-
-on:
-  schedule:
-    - cron: '0 7,14 * * *'  # Runs at 7:00 AM and 2:00 PM UTC daily
-  workflow_dispatch:  # Allows manual trigger
-
 jobs:
   update-all-weather:
     runs-on: ubuntu-latest
@@ -25,13 +16,135 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt
+          pip install pandas requests
           echo "✅ Dependencies installed"
 
-      - name: Update ALL weather data
+      - name: Update ALL weather data (EMBEDDED SCRIPT)
         run: |
           echo "🔄 Starting weather update for ALL beaches..."
-          python ./weather_updater.py --once --data-dir .
+          
+          # Create and run Python script directly
+          python3 << 'EOF'
+import os
+import json
+import pandas as pd
+import requests
+import time
+import logging
+from datetime import datetime
+
+# Setup logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
+
+def update_weather():
+    """Update weather for all beaches."""
+    
+    # Load beaches CSV
+    try:
+        df = pd.read_csv('blueflag_greece_scraped.csv')
+        logging.info(f"✅ Loaded {len(df)} beaches from CSV")
+    except Exception as e:
+        logging.error(f"❌ Failed to load CSV: {e}")
+        return
+    
+    # Clean data
+    df['Latitude'] = pd.to_numeric(df['Latitude'], errors='coerce')
+    df['Longitude'] = pd.to_numeric(df['Longitude'], errors='coerce')
+    df = df.dropna(subset=['Latitude', 'Longitude'])
+    
+    if 'Name' not in df.columns:
+        logging.error("❌ CSV missing 'Name' column")
+        return
+    
+    # Load existing cache
+    cache = {}
+    if os.path.exists('weather_cache.json'):
+        try:
+            with open('weather_cache.json', 'r', encoding='utf-8') as f:
+                cache = json.load(f)
+            logging.info(f"📂 Loaded existing cache with {len(cache)} entries")
+        except Exception as e:
+            logging.warning(f"⚠️ Could not load cache: {e}")
+    
+    total_beaches = len(df)
+    updated = 0
+    errors = 0
+    
+    # Process each beach
+    for idx, row in df.iterrows():
+        try:
+            beach_name = str(row['Name'])
+            lat = float(row['Latitude'])
+            lon = float(row['Longitude'])
+            
+            key = f"{lat:.6f}_{lon:.6f}"
+            
+            # Get weather data
+            weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,wind_speed_10m,wind_direction_10m&timezone=auto"
+            weather_response = requests.get(weather_url, timeout=15)
+            weather_response.raise_for_status()
+            weather_data = weather_response.json()
+            
+            # Small delay
+            time.sleep(0.1)
+            
+            # Get marine data
+            marine_url = f"https://marine-api.open-meteo.com/v1/marine?latitude={lat}&longitude={lon}&current=wave_height,wave_direction,wave_period,sea_surface_temperature"
+            marine_response = requests.get(marine_url, timeout=15)
+            marine_response.raise_for_status()
+            marine_data = marine_response.json()
+            
+            # Extract values
+            current_weather = weather_data.get('current', {})
+            current_marine = marine_data.get('current', {})
+            
+            # Create entry
+            entry = {
+                'beach_name': beach_name,
+                'latitude': lat,
+                'longitude': lon,
+                'air_temp': round(current_weather.get('temperature_2m', 'N/A'), 1) if current_weather.get('temperature_2m') is not None else 'N/A',
+                'wind_speed': round(current_weather.get('wind_speed_10m', 'N/A'), 1) if current_weather.get('wind_speed_10m') is not None else 'N/A',
+                'wind_direction': current_weather.get('wind_direction_10m', 'N/A'),
+                'wave_height': round(current_marine.get('wave_height', 'N/A'), 1) if current_marine.get('wave_height') is not None else 'N/A',
+                'wave_direction': current_marine.get('wave_direction', 'N/A'),
+                'wave_period': round(current_marine.get('wave_period', 'N/A'), 1) if current_marine.get('wave_period') is not None else 'N/A',
+                'sea_temp': round(current_marine.get('sea_surface_temperature', 'N/A'), 1) if current_marine.get('sea_surface_temperature') is not None else 'N/A',
+                'last_updated': datetime.now().isoformat()
+            }
+            
+            # Update cache
+            cache[key] = entry
+            updated += 1
+            
+            # Log progress every 10 beaches
+            if updated % 10 == 0:
+                logging.info(f"📊 Progress: {updated}/{total_beaches} beaches updated")
+            
+            # Rate limiting
+            time.sleep(0.05)
+            
+        except requests.exceptions.RequestException as e:
+            logging.error(f"⚠️ API error for beach {idx}: {e}")
+            errors += 1
+            time.sleep(1)
+        except Exception as e:
+            logging.error(f"❌ Error processing beach {idx}: {e}")
+            errors += 1
+    
+    # Save cache
+    try:
+        with open('weather_cache.json', 'w', encoding='utf-8') as f:
+            json.dump(cache, f, ensure_ascii=False, indent=2)
+        logging.info(f"💾 Saved cache with {len(cache)} entries")
+        logging.info(f"🎉 Completed: {updated} updated, {errors} errors")
+    except Exception as e:
+        logging.error(f"❌ Failed to save cache: {e}")
+
+if __name__ == "__main__":
+    update_weather()
+EOF
+          
           echo "✅ Weather update completed"
         timeout-minutes: 30
 
@@ -47,45 +160,36 @@ jobs:
           echo "File size: ${FILE_SIZE} bytes"
           
           ENTRY_COUNT=$(grep -c '"beach_name"' weather_cache.json 2>/dev/null || echo "0")
-          echo "Approximate beach entries: ${ENTRY_COUNT}"
+          echo "Beach entries: ${ENTRY_COUNT}"
 
       - name: Commit and push updated cache
         run: |
-          echo "🔄 Preparing to commit updated weather cache..."
+          echo "🔄 Preparing to commit..."
           
           git config user.email "action@github.com"
           git config user.name "GitHub Action"
           
           if git diff --quiet weather_cache.json; then
-            echo "🟡 No changes detected in weather cache - nothing to commit"
+            echo "🟡 No changes detected"
             exit 0
           fi
           
-          echo "🟢 Changes detected in weather_cache.json"
+          echo "🟢 Changes detected"
           
-          git pull origin main --rebase --autostash || {
-            echo "⚠️  Pull failed, trying merge strategy..."
-            git pull origin main --no-rebase
-          }
-          
+          git pull origin main --rebase --autostash || git pull origin main
           git add weather_cache.json
+          git commit -m "Update weather cache - $(date -u +'%Y-%m-%d %H:%M UTC')"
           
-          COMMIT_MSG="Update weather cache - $(date -u +'%Y-%m-%d %H:%M UTC')"
-          git commit -m "$COMMIT_MSG"
-          
-          MAX_RETRIES=3
-          for i in $(seq 1 $MAX_RETRIES); do
-            if git push origin main; then
-              echo "✅ Successfully pushed updated weather cache"
+          for i in {1..3}; do
+            if git push; then
+              echo "✅ Successfully pushed"
               exit 0
             else
-              echo "🔄 Push attempt $i/$MAX_RETRIES failed"
-              if [ $i -lt $MAX_RETRIES ]; then
-                sleep 10
-                git pull origin main --rebase --autostash
-              fi
+              echo "🔄 Push attempt $i failed, retrying..."
+              sleep 5
+              git pull origin main --rebase --autostash
             fi
           done
           
-          echo "❌ Failed to push after $MAX_RETRIES attempts"
+          echo "❌ Failed to push after 3 attempts"
           exit 1
