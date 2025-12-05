@@ -1,0 +1,91 @@
+name: Update Weather Data (Single Job)
+permissions:
+  contents: write
+
+on:
+  schedule:
+    - cron: '0 7,14 * * *'  # Runs at 7:00 AM and 2:00 PM UTC daily
+  workflow_dispatch:  # Allows manual trigger
+
+jobs:
+  update-all-weather:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          echo "✅ Dependencies installed"
+
+      - name: Update ALL weather data
+        run: |
+          echo "🔄 Starting weather update for ALL beaches..."
+          python ./weather_updater.py --once --data-dir .
+          echo "✅ Weather update completed"
+        timeout-minutes: 30
+
+      - name: Verify cache was updated
+        run: |
+          echo "=== Verifying weather_cache.json ==="
+          if [ ! -f "weather_cache.json" ]; then
+            echo "❌ ERROR: weather_cache.json was not created!"
+            exit 1
+          fi
+          
+          FILE_SIZE=$(wc -c < weather_cache.json)
+          echo "File size: ${FILE_SIZE} bytes"
+          
+          ENTRY_COUNT=$(grep -c '"beach_name"' weather_cache.json 2>/dev/null || echo "0")
+          echo "Approximate beach entries: ${ENTRY_COUNT}"
+
+      - name: Commit and push updated cache
+        run: |
+          echo "🔄 Preparing to commit updated weather cache..."
+          
+          git config user.email "action@github.com"
+          git config user.name "GitHub Action"
+          
+          if git diff --quiet weather_cache.json; then
+            echo "🟡 No changes detected in weather cache - nothing to commit"
+            exit 0
+          fi
+          
+          echo "🟢 Changes detected in weather_cache.json"
+          
+          git pull origin main --rebase --autostash || {
+            echo "⚠️  Pull failed, trying merge strategy..."
+            git pull origin main --no-rebase
+          }
+          
+          git add weather_cache.json
+          
+          COMMIT_MSG="Update weather cache - $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git commit -m "$COMMIT_MSG"
+          
+          MAX_RETRIES=3
+          for i in $(seq 1 $MAX_RETRIES); do
+            if git push origin main; then
+              echo "✅ Successfully pushed updated weather cache"
+              exit 0
+            else
+              echo "🔄 Push attempt $i/$MAX_RETRIES failed"
+              if [ $i -lt $MAX_RETRIES ]; then
+                sleep 10
+                git pull origin main --rebase --autostash
+              fi
+            fi
+          done
+          
+          echo "❌ Failed to push after $MAX_RETRIES attempts"
+          exit 1
