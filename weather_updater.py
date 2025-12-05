@@ -86,7 +86,8 @@ def call_api(url: str) -> Any:
 # ---------- Cache Management ----------
 def load_existing_cache() -> Dict[str, Any]:
     """Load existing cache - NO DELETION, NO CLEANING."""
-    cache_path = os.path.join(data_dir, "weather_cache.json")
+    # FIXED: Use current directory, not data_dir
+    cache_path = "weather_cache.json"
     if os.path.exists(cache_path):
         try:
             with open(cache_path, 'r', encoding='utf-8') as f:
@@ -100,32 +101,53 @@ def load_existing_cache() -> Dict[str, Any]:
 
 def save_batch_cache(batch_data: Dict[str, Any], batch_num: int) -> None:
     """Save batch-specific cache."""
+    # FIXED: Save files to current directory, not data_dir
     batch_filename = f"weather_cache_batch_{batch_num}.json"
-    batch_path = os.path.join(data_dir, batch_filename)
     
     try:
-        # Save batch file
-        with open(batch_path, 'w', encoding='utf-8') as f:
+        # Save batch file in CURRENT directory
+        with open(batch_filename, 'w', encoding='utf-8') as f:
             json.dump(batch_data, f, ensure_ascii=False, indent=2)
-        logging.info(f"Saved batch {batch_num} with {len(batch_data)} entries")
+        logging.info(f"✅ Saved batch {batch_num} to {batch_filename} with {len(batch_data)} entries")
         
-        # Update main cache (ADD/UPDATE, never delete)
-        combined_path = os.path.join(data_dir, "weather_cache.json")
-        existing = load_existing_cache()
+        # Update main cache (ADD/UPDATE, never delete) in CURRENT directory
+        main_cache_file = "weather_cache.json"
+        
+        # Load existing cache from current directory
+        existing = {}
+        if os.path.exists(main_cache_file):
+            try:
+                with open(main_cache_file, 'r', encoding='utf-8') as f:
+                    existing = json.load(f)
+                logging.info(f"📂 Loaded existing cache with {len(existing)} entries")
+            except Exception as e:
+                logging.warning(f"Failed to load existing cache: {e}")
+        
+        # Merge new batch data
+        before = len(existing)
         existing.update(batch_data)  # This adds new and updates existing
+        added = len(existing) - before
         
-        with open(combined_path, 'w', encoding='utf-8') as f:
+        # Save updated main cache
+        with open(main_cache_file, 'w', encoding='utf-8') as f:
             json.dump(existing, f, ensure_ascii=False, indent=2)
             
+        logging.info(f"💾 Updated main cache: {added} new entries, total {len(existing)} entries")
+            
     except Exception as e:
-        logging.error(f"Failed to save batch cache: {e}")
+        logging.error(f"❌ Failed to save batch cache: {e}", exc_info=True)
+        raise  # Re-raise to fail the workflow
 
 # ---------- Beach Loading ----------
 def load_beaches() -> pd.DataFrame:
     """Load beach data."""
-    csv_path = os.path.join(data_dir, "blueflag_greece_scraped.csv")
+    # FIXED: Use current directory, not just data_dir
+    csv_path = "blueflag_greece_scraped.csv"
     if not os.path.exists(csv_path):
-        raise FileNotFoundError(f"Beach data not found at {csv_path}")
+        # Fallback to data_dir if not in current directory
+        csv_path = os.path.join(data_dir, "blueflag_greece_scraped.csv")
+        if not os.path.exists(csv_path):
+            raise FileNotFoundError(f"Beach data not found at blueflag_greece_scraped.csv or {csv_path}")
     
     try:
         df = pd.read_csv(csv_path, engine='python')
