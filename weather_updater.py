@@ -35,9 +35,9 @@ logging.basicConfig(
 
 # ---------- Simple Config ----------
 CONFIG = {
-    'max_retries': 3,
-    'retry_delay': 5,
-    'api_delay': 0.5  # Delay between API calls
+    'max_retries': 2,           # CHANGED: Reduce from 3 to 2
+    'retry_delay': 2,           # CHANGED: Reduce from 5 to 2
+    'api_delay': 0.1            # CHANGED: Reduce from 0.5 to 0.1
 }
 
 # ---------- Rate Limiting ----------
@@ -66,22 +66,38 @@ def rate_limited(max_calls=25, period=60):
         return wrapper
     return decorator
 
-@rate_limited(max_calls=25, period=60)
+# CHANGED: Replaced the call_api function with a simpler version without decorator
 def call_api(url: str) -> Any:
-    """API call with retry logic."""
-    for attempt in range(CONFIG['max_retries']):
+    """Simple API call with retry."""
+    last_call_time = getattr(call_api, '_last_call_time', 0)
+    current_time = time.time()
+    
+    # Rate limit: max 25 calls per minute = 2.4s between calls
+    min_interval = 2.4
+    time_since_last = current_time - last_call_time
+    if time_since_last < min_interval:
+        sleep_time = min_interval - time_since_last
+        time.sleep(sleep_time)
+    
+    for attempt in range(2):  # Only 2 retries
         try:
-            r = requests.get(url, timeout=15)
+            logging.info(f"API call attempt {attempt+1}: {url[:80]}...")
+            r = requests.get(url, timeout=30)  # Increase timeout
             r.raise_for_status()
+            
+            call_api._last_call_time = time.time()  # Update last call time
             return r.json()
+        except requests.exceptions.Timeout:
+            logging.warning(f"Timeout on attempt {attempt+1}")
+            if attempt < 1:
+                time.sleep(3)
         except requests.exceptions.RequestException as e:
-            if attempt < CONFIG['max_retries'] - 1:
-                wait = CONFIG['retry_delay'] * (attempt + 1)
-                logging.warning(f"API call failed (attempt {attempt + 1}): {e}. Retrying in {wait}s...")
-                time.sleep(wait)
-            else:
-                logging.error(f"API call failed after {CONFIG['max_retries']} attempts: {e}")
-                raise
+            logging.warning(f"Request failed: {e}")
+            if attempt < 1:
+                time.sleep(2)
+    
+    logging.error(f"API call failed after 2 attempts: {url[:80]}...")
+    raise Exception(f"Failed to call API")
 
 # ---------- Cache Management ----------
 def load_existing_cache() -> Dict[str, Any]:
@@ -186,8 +202,10 @@ def fetch_weather_data(lat: float, lon: float, beach_name: str) -> Optional[Dict
         )
         weather_data = call_api(weather_url)
         
+        # CHANGED: Reduced from 1 second to 0.1 second
+        time.sleep(0.1)  # Small delay between APIs
+        
         # Marine data
-        time.sleep(1)  # Small delay between APIs
         marine_url = (
             f"https://marine-api.open-meteo.com/v1/marine?"
             f"latitude={lat}&longitude={lon}&"
