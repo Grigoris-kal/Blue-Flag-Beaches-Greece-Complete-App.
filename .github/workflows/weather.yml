@@ -86,7 +86,7 @@ jobs:
           else:
               for root, dirs, files in os.walk(artifacts_dir):
                   for file in files:
-                      if file == 'weather_cache.json':
+                      if file.startswith('weather_cache_batch_') and file.endswith('.json'):
                           filepath = os.path.join(root, file)
                           batch_count += 1
 
