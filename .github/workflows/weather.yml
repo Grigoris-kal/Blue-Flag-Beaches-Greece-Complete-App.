@@ -29,8 +29,26 @@ jobs:
 
       - name: Run weather updater
         run: python ./weather_updater.py --once --batch-size 30 --batch-number ${{ matrix.batch }}
-        # Add timeout to prevent hanging
         timeout-minutes: 30
+
+      # DEBUG STEP: Check what files were created
+      - name: Debug - Check what files exist after Python script
+        run: |
+          echo "=== Current directory ==="
+          pwd
+          echo "=== All files in directory ==="
+          ls -la
+          echo "=== Specifically looking for batch files ==="
+          ls -la weather_cache_batch_*.json 2>/dev/null || echo "No batch files found"
+          echo "=== Looking for main cache file ==="
+          ls -la weather_cache.json 2>/dev/null || echo "weather_cache.json not found"
+          echo "=== Looking for log file ==="
+          if [ -f "weather_updater.log" ]; then
+            echo "weather_updater.log exists. Last 10 lines:"
+            tail -10 weather_updater.log
+          else
+            echo "No weather_updater.log found"
+          fi
 
       - name: Upload weather cache artifact
         if: always()  # Upload even if step fails
@@ -38,10 +56,11 @@ jobs:
         with:
           name: weather-cache-batch-${{ matrix.batch }}
           path: weather_cache_batch_${{ matrix.batch }}.json
+          retention-days: 1
 
   combine-and-commit:
     needs: update-weather
-    if: always()  # <-- CRITICAL FIX: Run even if some batches fail
+    if: always()  # Run even if some batches fail
     runs-on: ubuntu-latest
 
     steps:
@@ -53,6 +72,13 @@ jobs:
         with:
           path: artifacts/
           if-no-files-found: warn  # Warn instead of fail if no artifacts
+
+      - name: Debug - Check downloaded artifacts
+        run: |
+          echo "=== Artifacts directory contents ==="
+          find artifacts/ -type f -name "*.json" 2>/dev/null | head -20 || echo "No JSON files found in artifacts"
+          echo "=== Total files in artifacts ==="
+          find artifacts/ -type f 2>/dev/null | wc -l
 
       - name: Combine weather caches
         run: |
