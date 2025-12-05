@@ -26,30 +26,35 @@ import shutil
 from ratelimit import limits, sleep_and_retry
 from typing import Dict, Any, Optional
 
-# Parse --data-dir early to configure logging path
-parser = argparse.ArgumentParser(add_help=False)
-parser.add_argument('--data-dir', default='.', help='Directory for cache, logs, and data files')
-args, unknown = parser.parse_known_args()
-data_dir = os.path.abspath(args.data_dir)
+# ---------- Global variable declaration ----------
+data_dir = '.'  # Default value, will be updated in main()
 
-# Create data_dir if it does not exist
-if not os.path.exists(data_dir):
-    os.makedirs(data_dir)
-
-# Setup logging to use data_dir
-log_path = os.path.join(data_dir, 'weather_updater.log')
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(log_path),
-        logging.StreamHandler()
-    ]
-)
-
-# Load environment variables from .env file only if not running in GitHub Actions
-if not os.getenv('GITHUB_ACTIONS'):
-    load_dotenv(os.path.join(data_dir, 'JAWG_TOKEN.env'))
+# ---------- Functions that will use data_dir ----------
+def setup_data_dir(dir_path: str) -> None:
+    """Setup the data directory globally."""
+    global data_dir
+    data_dir = os.path.abspath(dir_path)
+    os.makedirs(data_dir, exist_ok=True)
+    
+    # Reconfigure logging with new data_dir
+    log_path = os.path.join(data_dir, 'weather_updater.log')
+    for handler in logging.root.handlers[:]:
+        logging.root.removeHandler(handler)
+    
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(log_path),
+            logging.StreamHandler()
+        ]
+    )
+    
+    # Load environment variables if not in GitHub Actions
+    if not os.getenv('GITHUB_ACTIONS'):
+        env_path = os.path.join(data_dir, 'JAWG_TOKEN.env')
+        if os.path.exists(env_path):
+            load_dotenv(env_path)
 
 # Configuration constants
 CACHE_CONFIG = {
@@ -401,11 +406,11 @@ def main():
     parser.add_argument('--data-dir', default='.', help='Directory for cache, logs, and data files')
     args = parser.parse_args()
 
-    # Set global data_dir to the final value from main args
-    global data_dir
-    data_dir = os.path.abspath(args.data_dir)
-    os.makedirs(data_dir, exist_ok=True)
-
+    # Setup the data directory FIRST
+    setup_data_dir(args.data_dir)
+    
+    logging.info(f"Weather Updater started. Data directory: {data_dir}")
+    
     if args.once:
         update_weather_cache(args.batch_size, args.batch_number)
     else:
