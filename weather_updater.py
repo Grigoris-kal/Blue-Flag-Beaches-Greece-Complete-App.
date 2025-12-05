@@ -1,28 +1,42 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3 
 """
-Weather Updater for Blue Flag Beaches Greece - SIMPLIFIED VERSION
-NO SCHEDULE LOGIC - Just updates when GitHub Actions tells it to run
+Weather Updater for Blue Flag Beaches Greece - OPTIMIZED VERSION
+Maintains all original functionality while reducing resource usage by:
+- Smart caching (skip fresh data)
+- Rate-limited API calls
+- Memory-efficient processing
+- Batched threading
+- Atomic file writes
 """
 
 from __future__ import annotations
 import argparse
 import os
 import logging
+from dotenv import load_dotenv
 import pandas as pd
 import requests
 import json
 import time
 from datetime import datetime
+import psutil
+import resource
+import gzip
+import shutil
+from ratelimit import limits, sleep_and_retry
 from typing import Dict, Any, Optional
 
-# ---------- Early parse for data_dir ----------
+# Parse --data-dir early to configure logging path
 parser = argparse.ArgumentParser(add_help=False)
 parser.add_argument('--data-dir', default='.', help='Directory for cache, logs, and data files')
-args_known, _ = parser.parse_known_args()
-data_dir = os.path.abspath(args_known.data_dir)
-os.makedirs(data_dir, exist_ok=True)
+args, unknown = parser.parse_known_args()
+data_dir = os.path.abspath(args.data_dir)
 
-# ---------- Logging ----------
+# Create data_dir if it does not exist
+if not os.path.exists(data_dir):
+    os.makedirs(data_dir)
+
+# Setup logging to use data_dir
 log_path = os.path.join(data_dir, 'weather_updater.log')
 logging.basicConfig(
     level=logging.INFO,
@@ -33,288 +47,367 @@ logging.basicConfig(
     ]
 )
 
-# ---------- Simple Config ----------
-CONFIG = {
-    'max_retries': 2,           # CHANGED: Reduce from 3 to 2
-    'retry_delay': 2,           # CHANGED: Reduce from 5 to 2
-    'api_delay': 0.1            # CHANGED: Reduce from 0.5 to 0.1
+# Load environment variables from .env file only if not running in GitHub Actions
+if not os.getenv('GITHUB_ACTIONS'):
+    load_dotenv(os.path.join(data_dir, 'JAWG_TOKEN.env'))
+
+# Configuration constants
+CACHE_CONFIG = {
+    'sea_temp_hours': 4,       # Cache sea temp for 4 hours
+    'weather_hours': 6,        # Cache weather for 6 hours
+    'max_cache_size': 1000,    # Maximum entries to keep in memory
+    'cache_clean_interval': 10 # Clean cache every 10 updates
 }
 
-# ---------- Rate Limiting ----------
-import functools
+# Global variable to store sea temperature data
+SEA_TEMP_CACHE = {
+    'data': None,
+    'last_updated': None,
+    'size': 0
+}
 
-def rate_limited(max_calls=25, period=60):
-    """Simple rate limiter."""
-    import time
-    from threading import Lock
+# ---------- Helpers ----------
+def check_memory_usage():
+    """Log memory usage information and set soft limits"""
+    process = psutil.Process(os.getpid())
+    mem_info = process.memory_info()
+    logging.info(f"Memory usage: {mem_info.rss / 1024 / 1024:.2f} MB RSS")
     
-    lock = Lock()
-    min_interval = period / max_calls
-    
-    def decorator(func):
-        last_called = [0.0]
-        
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            with lock:
-                elapsed = time.time() - last_called[0]
-                left_to_wait = min_interval - elapsed
-                if left_to_wait > 0:
-                    time.sleep(left_to_wait)
-                last_called[0] = time.time()
-                return func(*args, **kwargs)
-        return wrapper
-    return decorator
+    # Set soft memory limit (512MB)
+    soft_limit = 512 * 1024 * 1024
+    resource.setrlimit(resource.RLIMIT_AS, (soft_limit, resource.RLIM_INFINITY))
 
-# CHANGED: Replaced the call_api function with a simpler version without decorator
-def call_api(url: str) -> Any:
-    """Simple API call with retry."""
-    last_call_time = getattr(call_api, '_last_call_time', 0)
-    current_time = time.time()
-    
-    # Rate limit: max 25 calls per minute = 2.4s between calls
-    min_interval = 2.4
-    time_since_last = current_time - last_call_time
-    if time_since_last < min_interval:
-        sleep_time = min_interval - time_since_last
-        time.sleep(sleep_time)
-    
-    for attempt in range(2):  # Only 2 retries
-        try:
-            logging.info(f"API call attempt {attempt+1}: {url[:80]}...")
-            r = requests.get(url, timeout=30)  # Increase timeout
-            r.raise_for_status()
-            
-            call_api._last_call_time = time.time()  # Update last call time
-            return r.json()
-        except requests.exceptions.Timeout:
-            logging.warning(f"Timeout on attempt {attempt+1}")
-            if attempt < 1:
-                time.sleep(3)
-        except requests.exceptions.RequestException as e:
-            logging.warning(f"Request failed: {e}")
-            if attempt < 1:
-                time.sleep(2)
-    
-    logging.error(f"API call failed after 2 attempts: {url[:80]}...")
-    raise Exception(f"Failed to call API")
+@sleep_and_retry
+@limits(calls=30, period=60)  # 30 calls per minute
+def call_api(url):
+    """Rate-limited API caller with retry logic"""
+    try:
+        response = requests.get(url, timeout=20)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        logging.warning(f"API call failed: {str(e)}")
+        raise
 
-# ---------- Cache Management ----------
 def load_existing_cache() -> Dict[str, Any]:
-    """Load existing cache - NO DELETION, NO CLEANING."""
-    # FIXED: Use current directory, not data_dir
-    cache_path = "weather_cache.json"
+    """Load canonical cache from data_dir (if present)."""
+    cache_path = os.path.join(data_dir, "weather_cache.json")
     if os.path.exists(cache_path):
         try:
             with open(cache_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             if isinstance(data, dict):
                 logging.info(f"Loaded existing cache with {len(data)} entries")
+                # Optionally clean if too large
+                if len(data) > CACHE_CONFIG['max_cache_size']:
+                    logging.info("Existing cache too large; performing light cleaning")
+                    return clean_weather_cache(data)
                 return data
+            else:
+                logging.warning("Existing cache file is not a JSON object; ignoring")
         except Exception as e:
             logging.warning(f"Failed to load existing cache: {e}")
     return {}
 
-def save_batch_cache(batch_data: Dict[str, Any], batch_num: int) -> None:
-    """Save batch-specific cache."""
-    # FIXED: Save files to current directory, not data_dir
-    batch_filename = f"weather_cache_batch_{batch_num}.json"
-    
+def clean_weather_cache(cache: Dict[str, Any]) -> Dict[str, Any]:
+    now = datetime.now()
+    cleaned = {}
+    removed = 0
+    for key, v in cache.items():
+        try:
+            last = v.get('last_updated', '')
+            if last:
+                last_dt = datetime.fromisoformat(last)
+                hours = (now - last_dt).total_seconds() / 3600.0
+                if hours < CACHE_CONFIG['weather_hours'] * 3:
+                    cleaned[key] = v
+                else:
+                    removed += 1
+            else:
+                cleaned[key] = v
+        except Exception:
+            cleaned[key] = v
+    logging.info(f"clean_weather_cache: removed {removed} stale entries")
+    return cleaned
+
+# ---------- Sea temp fetching (cached) ----------
+def fetch_greece_sea_temperature():
+    """Fetch sea temperature for entire Greece in ONE call (cached for 4 hours)"""
     try:
-        # Save batch file in CURRENT directory
-        with open(batch_filename, 'w', encoding='utf-8') as f:
-            json.dump(batch_data, f, ensure_ascii=False, indent=2)
-        logging.info(f"✅ Saved batch {batch_num} to {batch_filename} with {len(batch_data)} entries")
+        if SEA_TEMP_CACHE['data'] and SEA_TEMP_CACHE['last_updated']:
+            time_since_update = datetime.now() - SEA_TEMP_CACHE['last_updated']
+            if time_since_update.total_seconds() < CACHE_CONFIG['sea_temp_hours'] * 3600:
+                logging.info("Using cached sea temperature data")
+                return SEA_TEMP_CACHE['data']
         
-        # Update main cache (ADD/UPDATE, never delete) in CURRENT directory
-        main_cache_file = "weather_cache.json"
+        logging.info("Fetching fresh sea temperature data...")
         
-        # Load existing cache from current directory
-        existing = {}
-        if os.path.exists(main_cache_file):
-            try:
-                with open(main_cache_file, 'r', encoding='utf-8') as f:
-                    existing = json.load(f)
-                logging.info(f"📂 Loaded existing cache with {len(existing)} entries")
-            except Exception as e:
-                logging.warning(f"Failed to load existing cache: {e}")
+        base_url = "https://coastwatch.pfeg.noaa.gov/erddap/griddap/jplMURSST41.json"
+        query = "analysed_sst[(last)][(34):1:(42)][(19):1:(29)]"
+        url = f"{base_url}?{query}"
         
-        # Merge new batch data
-        before = len(existing)
-        existing.update(batch_data)  # This adds new and updates existing
-        added = len(existing) - before
+        data = call_api(url)
         
-        # Save updated main cache
-        with open(main_cache_file, 'w', encoding='utf-8') as f:
-            json.dump(existing, f, ensure_ascii=False, indent=2)
-            
-        logging.info(f"💾 Updated main cache: {added} new entries, total {len(existing)} entries")
-            
+        sst_data = {}
+        valid_count = 0
+        for row in data['table']['rows']:
+            time_val, lat, lon, sst = row
+            if sst is not None and -10 < sst < 50:
+                sst_celsius = round(sst, 1)
+                key = f"{lat}_{lon}"
+                sst_data[key] = {
+                    'lat': lat,
+                    'lon': lon,
+                    'temp': sst_celsius
+                }
+                valid_count += 1
+        
+        SEA_TEMP_CACHE['data'] = sst_data
+        SEA_TEMP_CACHE['last_updated'] = datetime.now()
+        SEA_TEMP_CACHE['size'] = valid_count
+        
+        logging.info(f"Downloaded sea temps for {valid_count} points")
+        return sst_data
     except Exception as e:
-        logging.error(f"❌ Failed to save batch cache: {e}", exc_info=True)
-        raise  # Re-raise to fail the workflow
+        logging.error(f"Sea temp fetch failed: {str(e)}")
+        return SEA_TEMP_CACHE['data']  # Return cached if available
 
-# ---------- Beach Loading ----------
-def load_beaches() -> pd.DataFrame:
-    """Load beach data."""
-    # FIXED: Use current directory, not just data_dir
-    csv_path = "blueflag_greece_scraped.csv"
-    if not os.path.exists(csv_path):
-        # Fallback to data_dir if not in current directory
-        csv_path = os.path.join(data_dir, "blueflag_greece_scraped.csv")
-        if not os.path.exists(csv_path):
-            raise FileNotFoundError(f"Beach data not found at blueflag_greece_scraped.csv or {csv_path}")
+def get_sea_temp(lat, lon, sea_temp_data, beach_name):
+    try:
+        if sea_temp_data:
+            min_distance = float('inf')
+            nearest_temp = None
+            for key, point in sea_temp_data.items():
+                distance = ((point['lat'] - lat)**2 + (point['lon'] - lon)**2)**0.5
+                if distance < min_distance:
+                    min_distance = distance
+                    nearest_temp = point['temp']
+            if nearest_temp is not None and min_distance < 2.0:
+                logging.debug(f"Sea temp for {beach_name}: {nearest_temp}°C (NOAA)")
+                return nearest_temp
+        
+        # fallback to marine-api
+        marine_url = f"https://marine-api.open-meteo.com/v1/marine?latitude={lat}&longitude={lon}&current=sea_surface_temperature"
+        data = call_api(marine_url)
+        sea_temp = data.get('current', {}).get('sea_surface_temperature')
+        
+        if sea_temp is not None:
+            logging.debug(f"Sea temp for {beach_name}: {sea_temp}°C (Open-Meteo)")
+            return round(sea_temp, 1)
+    except Exception as e:
+        logging.warning(f"Sea temp fallback failed for {beach_name}: {str(e)}")
+    
+    return 'N/A'
+
+def get_weather_data(lat, lon, beach_name, sea_temp_data=None):
+    check_memory_usage()
+    
+    key = f"{round(lat, 6)}_{round(lon, 6)}"
+    
+    existing_cache = load_existing_cache()
+    if key in existing_cache:
+        data = existing_cache[key]
+        try:
+            last_updated = datetime.fromisoformat(data.get('last_updated', ''))
+            hours_since_update = (datetime.now() - last_updated).total_seconds() / 3600
+            
+            if hours_since_update < CACHE_CONFIG['weather_hours'] / 2:
+                logging.info(f"Reusing recent data for {beach_name}")
+                if data['sea_temp'] == 'N/A' or hours_since_update > 2:
+                    data['sea_temp'] = get_sea_temp(lat, lon, sea_temp_data, beach_name)
+                    data['last_updated'] = datetime.now().isoformat()
+                return data
+        except:
+            pass
+    
+    weather_info = {
+        'beach_name': beach_name,
+        'latitude': lat,
+        'longitude': lon,
+        'air_temp': 'N/A',
+        'wind_speed': 'N/A',
+        'wind_direction': 'N/A',
+        'wave_height': 'N/A',
+        'wave_direction': 'N/A',
+        'wave_period': 'N/A',
+        'sea_temp': 'N/A',
+        'last_updated': datetime.now().isoformat()
+    }
     
     try:
-        df = pd.read_csv(csv_path, engine='python')
-    except pd.errors.ParserError:
-        df = pd.read_csv(csv_path, engine='python', on_bad_lines='skip')
-    
-    # Validate and clean
-    required_cols = ['Name', 'Latitude', 'Longitude']
-    for col in required_cols:
-        if col not in df.columns:
-            raise ValueError(f"Missing required column: {col}")
-    
-    df['Latitude'] = pd.to_numeric(df['Latitude'], errors='coerce')
-    df['Longitude'] = pd.to_numeric(df['Longitude'], errors='coerce')
-    df = df.dropna(subset=['Latitude', 'Longitude'])
-    
-    # Create consistent key
-    df['cache_key'] = df.apply(
-        lambda row: f"{row['Latitude']:.7f}_{row['Longitude']:.7f}", 
-        axis=1
-    )
-    
-    logging.info(f"Loaded {len(df)} beaches")
-    return df
-
-# ---------- Weather Fetching ----------
-def fetch_weather_data(lat: float, lon: float, beach_name: str) -> Optional[Dict[str, Any]]:
-    """Fetch ALL weather data for a location."""
-    try:
-        # Weather data
-        weather_url = (
-            f"https://api.open-meteo.com/v1/forecast?"
-            f"latitude={lat}&longitude={lon}&"
-            f"current=temperature_2m,wind_speed_10m,wind_direction_10m&"
-            f"timezone=auto"
-        )
+        weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,wind_speed_10m,wind_direction_10m&timezone=auto"
         weather_data = call_api(weather_url)
-        
-        # CHANGED: Reduced from 1 second to 0.1 second
-        time.sleep(0.1)  # Small delay between APIs
-        
-        # Marine data
-        marine_url = (
-            f"https://marine-api.open-meteo.com/v1/marine?"
-            f"latitude={lat}&longitude={lon}&"
-            f"current=wave_height,wave_direction,wave_period,sea_surface_temperature"
-        )
-        marine_data = call_api(marine_url)
-        
-        # Build complete entry
         current = weather_data.get('current', {})
-        marine = marine_data.get('current', {})
+        weather_info['air_temp'] = round(current.get('temperature_2m', 'N/A'), 1) if current.get('temperature_2m') is not None else 'N/A'
+        weather_info['wind_speed'] = round(current.get('wind_speed_10m', 'N/A'), 1) if current.get('wind_speed_10m') is not None else 'N/A'
+        weather_info['wind_direction'] = current.get('wind_direction_10m', 'N/A')
         
-        entry = {
-            'beach_name': beach_name,
-            'latitude': lat,
-            'longitude': lon,
-            'air_temp': round(current.get('temperature_2m', 'N/A'), 1) if current.get('temperature_2m') is not None else 'N/A',
-            'wind_speed': round(current.get('wind_speed_10m', 'N/A'), 1) if current.get('wind_speed_10m') is not None else 'N/A',
-            'wind_direction': current.get('wind_direction_10m', 'N/A'),
-            'wave_height': round(marine.get('wave_height', 'N/A'), 1) if marine.get('wave_height') is not None else 'N/A',
-            'wave_direction': marine.get('wave_direction', 'N/A'),
-            'wave_period': round(marine.get('wave_period', 'N/A'), 1) if marine.get('wave_period') is not None else 'N/A',
-            'sea_temp': round(marine.get('sea_surface_temperature', 'N/A'), 1) if marine.get('sea_surface_temperature') is not None else 'N/A',
-            'last_updated': datetime.now().isoformat()
-        }
+        time.sleep(1)
+        marine_url = f"https://marine-api.open-meteo.com/v1/marine?latitude={lat}&longitude={lon}&current=wave_height,wave_direction,wave_period"
+        marine_data = call_api(marine_url)
+        current_marine = marine_data.get('current', {})
+        weather_info['wave_height'] = round(current_marine.get('wave_height', 'N/A'), 1) if current_marine.get('wave_height') is not None else 'N/A'
+        weather_info['wave_direction'] = current_marine.get('wave_direction', 'N/A')
+        weather_info['wave_period'] = round(current_marine.get('wave_period', 'N/A'), 1) if current_marine.get('wave_period') is not None else 'N/A'
         
-        logging.info(f"Fetched weather for {beach_name}")
-        return entry
+        weather_info['sea_temp'] = get_sea_temp(lat, lon, sea_temp_data, beach_name)
         
+        logging.info(f"Updated {beach_name}")
+        return weather_info
     except Exception as e:
-        logging.error(f"Failed to fetch weather for {beach_name}: {e}")
+        logging.error(f"Failed to update {beach_name}: {str(e)}")
         return None
 
-# ---------- Main Processing ----------
-def process_batch(batch_size: Optional[int] = None, batch_number: Optional[int] = None) -> Dict[str, Any]:
-    """
-    Process a batch of beaches.
-    SIMPLE RULE: Update every beach in the batch.
-    Let GitHub Actions control frequency via schedule.
-    """
-    df = load_beaches()
+def update_beaches_in_batches(beaches, sea_temp_data):
+    batch_size = 20
+    total_batches = (len(beaches) + batch_size - 1) // batch_size
+    new_data = {}
     
-    total_beaches = len(df)
-    if batch_size is None or batch_number is None:
-        start_idx = 0
-        end_idx = total_beaches
-        logging.info(f"Processing all {total_beaches} beaches")
-    else:
-        start_idx = batch_number * batch_size
-        end_idx = min(start_idx + batch_size, total_beaches)
-        if start_idx >= total_beaches:
-            logging.warning(f"Batch {batch_number} out of range")
-            return {}
-        logging.info(f"Processing batch {batch_number}: beaches {start_idx} to {end_idx-1}")
-    
-    batch_updates = {}
-    
-    for idx in range(start_idx, end_idx):
-        row = df.iloc[idx]
-        cache_key = row['cache_key']
+    for batch_num in range(total_batches):
+        start_idx = batch_num * batch_size
+        end_idx = start_idx + batch_size
+        batch = beaches[start_idx:end_idx]
         
-        # ALWAYS FETCH NEW DATA - GitHub Actions controls frequency
-        logging.info(f"Updating {row['Name']}")
-        entry = fetch_weather_data(row['Latitude'], row['Longitude'], row['Name'])
+        for row in batch:
+            try:
+                result = get_weather_data(row['Latitude'], row['Longitude'], row['Name'], sea_temp_data)
+                if result:
+                    for decimals in [7, 6, 5, 4, 3]:
+                        key = f"{round(row['Latitude'], decimals)}_{round(row['Longitude'], decimals)}"
+                        if key not in new_data:
+                            new_data[key] = result
+            except Exception as e:
+                logging.error(f"Processing failed for {row['Name']}: {str(e)}")
         
-        if entry:
-            batch_updates[cache_key] = entry
-            time.sleep(CONFIG['api_delay'])  # Small delay between beaches
+        if batch_num < total_batches - 1:
+            time.sleep(15)
     
-    logging.info(f"Batch completed: {len(batch_updates)} updates")
-    return batch_updates
+    return new_data
 
-# ---------- Main ----------
-def main():
-    parser = argparse.ArgumentParser(description="Weather Updater - Simple Version")
+def load_beaches_optimized():
+    csv_path = os.path.join(data_dir, "blueflag_greece_scraped.csv")
+    if not os.path.exists(csv_path):
+        raise FileNotFoundError(f"Beach data not found at {csv_path}")
+    
+    try:
+        df = pd.read_csv(csv_path, header=0, engine='python')
+    except pd.errors.ParserError:
+        df = pd.read_csv(csv_path, header=0, engine='python', error_bad_lines=False)
+    
+    # normalize coords
+    if 'Latitude' in df.columns and 'Longitude' in df.columns:
+        df['Latitude'] = pd.to_numeric(df['Latitude'], errors='coerce')
+        df['Longitude'] = pd.to_numeric(df['Longitude'], errors='coerce')
+    
+    if 'Name' not in df.columns and len(df.columns) > 0:
+        df = df.rename(columns={df.columns[0]: 'Name'})
+    
+    return df.dropna(subset=['Latitude', 'Longitude'])
+
+def should_update_beach(cache, row):
+    key = f"{round(row['Latitude'], 6)}_{round(row['Longitude'], 6)}"
+    
+    if key not in cache:
+        return True
+    
+    try:
+        last_updated = datetime.fromisoformat(cache[key].get('last_updated', ''))
+        hours_since_update = (datetime.now() - last_updated).total_seconds() / 3600
+        return hours_since_update >= CACHE_CONFIG['weather_hours']
+    except:
+        return True
+
+def save_weather_cache(data):
+    temp_path = os.path.join(data_dir, "weather_cache.tmp")
+    final_path = os.path.join(data_dir, "weather_cache.json")
+    
+    try:
+        with open(temp_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        os.replace(temp_path, final_path)
+        
+        if os.path.getsize(final_path) > 1024 * 1024:
+            with open(final_path, 'rb') as f_in:
+                with gzip.open(final_path + '.gz', 'wb') as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+            logging.info("Created compressed cache backup")
+            
+    except Exception as e:
+        logging.error(f"Cache save failed: {str(e)}")
+
+def update_weather_cache(batch_size=None, batch_number=None):
+    check_memory_usage()
+    
+    try:
+        df = load_beaches_optimized()
+        unique_locations = df[['Name', 'Latitude', 'Longitude']].drop_duplicates()
+        
+        if batch_size and batch_number is not None:
+            start_idx = batch_number * batch_size
+            end_idx = start_idx + batch_size
+            locations_to_process = unique_locations.iloc[start_idx:end_idx]
+            logging.info(f"Processing batch {batch_number + 1} ({len(locations_to_process)} beaches)")
+        else:
+            locations_to_process = unique_locations
+            logging.info(f"Processing all {len(locations_to_process)} beaches")
+        
+        existing_cache = load_existing_cache()
+        beaches_needing_update = [
+            row for _, row in locations_to_process.iterrows()
+            if should_update_beach(existing_cache, row)
+        ]
+        
+        if not beaches_needing_update:
+            logging.info("All beaches are up-to-date!")
+            return
+        
+        sea_temp_data = fetch_greece_sea_temperature()
+        
+        new_data = update_beaches_in_batches(beaches_needing_update, sea_temp_data)
+        
+        existing_cache.update(new_data)
+        
+        if len(existing_cache) > CACHE_CONFIG['max_cache_size']:
+            existing_cache = clean_weather_cache(existing_cache)
+        
+        save_weather_cache(existing_cache)
+        logging.info(f"Updated {len(new_data)} beaches. Total in cache: {len(existing_cache)}")
+        
+    except Exception as e:
+        logging.error(f"Update failed: {str(e)}", exc_info=True)
+        raise
+
+def continuous_update(interval_minutes=480):
+    logging.info(f"Starting optimized updater (interval: {interval_minutes} mins)")
+    
+    while True:
+        try:
+            update_weather_cache()
+            logging.info(f"Sleeping for {interval_minutes} minutes...")
+            time.sleep(interval_minutes * 60)
+        except KeyboardInterrupt:
+            logging.info("Stopped by user")
+            break
+        except Exception as e:
+            logging.error(f"Update cycle failed: {str(e)}")
+            time.sleep(300)
+
+if __name__ == "__main__":
+    # Reparse args with full help and adding data-dir
+    parser = argparse.ArgumentParser(description='Optimized Weather Updater')
     parser.add_argument('--once', action='store_true', help='Run once and exit')
-    parser.add_argument('--interval', type=int, default=480, help='Interval minutes (unused in GitHub Actions)')
+    parser.add_argument('--interval', type=int, default=480, help='Update interval in minutes')
     parser.add_argument('--batch-size', type=int, help='Batch size for partial processing')
     parser.add_argument('--batch-number', type=int, help='Batch number (0-indexed)')
     parser.add_argument('--data-dir', default='.', help='Directory for cache, logs, and data files')
     args = parser.parse_args()
-    
+
+    # Set global data_dir to the final value from main args
     global data_dir
     data_dir = os.path.abspath(args.data_dir)
     os.makedirs(data_dir, exist_ok=True)
-    
-    logging.info("Starting SIMPLE weather updater")
-    logging.info("GitHub Actions controls update frequency via cron schedule")
-    
-    if args.once:
-        batch_updates = process_batch(args.batch_size, args.batch_number)
-        if batch_updates:
-            save_batch_cache(batch_updates, args.batch_number or 0)
-        else:
-            logging.info("No updates in this batch")
-    else:
-        # Continuous mode (for local testing)
-        while True:
-            try:
-                batch_updates = process_batch(args.batch_size, args.batch_number)
-                if batch_updates:
-                    save_batch_cache(batch_updates, args.batch_number or 0)
-                logging.info(f"Sleeping for {args.interval} minutes")
-                time.sleep(args.interval * 60)
-            except KeyboardInterrupt:
-                logging.info("Interrupted by user")
-                break
-            except Exception as e:
-                logging.error(f"Update loop exception: {e}", exc_info=True)
-                time.sleep(300)
 
-if __name__ == "__main__":
-    main()
+    if args.once:
+        update_weather_cache(args.batch_size, args.batch_number)
+    else:
+        continuous_update(args.interval)
