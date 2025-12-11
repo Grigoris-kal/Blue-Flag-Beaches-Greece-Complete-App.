@@ -131,7 +131,7 @@ st.set_page_config(
 
 def find_depth_data(lat: float, lon: float, depth_data: dict):
     """Find depth data for given coordinates"""
-    if 'beaches' not in depth_data:
+    if not depth_data or 'beaches' not in depth_data:
         return None
     
     # Try exact match first
@@ -139,8 +139,15 @@ def find_depth_data(lat: float, lon: float, depth_data: dict):
     if exact_key in depth_data['beaches']:
         return depth_data['beaches'][exact_key].get('depth_info')
     
-    # Try progressive rounding
-    for decimals in (7, 6, 5, 4, 3):
+    # Try with 7 decimal rounding (same as database)
+    lat_7 = round(lat, 7)
+    lon_7 = round(lon, 7)
+    rounded_key_7 = f"{lat_7}_{lon_7}"
+    if rounded_key_7 in depth_data['beaches']:
+        return depth_data['beaches'][rounded_key_7].get('depth_info')
+    
+    # Try different decimal precisions
+    for decimals in (6, 5, 4):
         lat_rounded = round(lat, decimals)
         lon_rounded = round(lon, decimals)
         rounded_key = f"{lat_rounded}_{lon_rounded}"
@@ -276,7 +283,7 @@ def create_mobile_map(df, weather_cache, depth_data):
         lon = row['Longitude']
         
         # Use flexible matching for weather
-        weather, matched_key = find_best_weather_match(lat, lon, weather_cache, max_distance_km=1.0)
+        weather, matched_key = find_best_weather_match(lat, lon, weather_cache, max_distance_km=0.5)
         
         if weather:
             matched_count += 1
@@ -565,5 +572,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
