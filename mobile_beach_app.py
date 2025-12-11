@@ -259,10 +259,34 @@ def create_mobile_map(df, weather_cache, depth_data):
         # Build tooltip
         tooltip_text = f"📌 GPS: {lat:.4f}, {lon:.4f}"
         
-        # Depth data - use matched key if available
+        # Depth data - try multiple strategies
         depth_info = None
-        if matched_key and 'beaches' in depth_data and matched_key in depth_data['beaches']:
+        
+        # Strategy 1: Try exact coordinates (what depth database uses)
+        exact_key = f"{lat}_{lon}"
+        if 'beaches' in depth_data and exact_key in depth_data['beaches']:
+            depth_info = depth_data['beaches'][exact_key].get('depth_info')
+        
+        # Strategy 2: Try weather cache key as fallback
+        if not depth_info and matched_key and 'beaches' in depth_data and matched_key in depth_data['beaches']:
             depth_info = depth_data['beaches'][matched_key].get('depth_info')
+        
+        # Strategy 3: Try with 7 decimal rounding (same as database)
+        if not depth_info:
+            lat_7 = round(lat, 7)
+            lon_7 = round(lon, 7)
+            rounded_key_7 = f"{lat_7}_{lon_7}"
+            if 'beaches' in depth_data and rounded_key_7 in depth_data['beaches']:
+                depth_info = depth_data['beaches'][rounded_key_7].get('depth_info')
+        
+        # Strategy 4: Try other decimal precisions
+        if not depth_info:
+            for decimals in (6, 5, 4, 3):
+                rounded_key = f"{round(lat, decimals)}_{round(lon, decimals)}"
+                if 'beaches' in depth_data and rounded_key in depth_data['beaches']:
+                    depth_info = depth_data['beaches'][rounded_key].get('depth_info')
+                    if depth_info:
+                        break
         
         if depth_info and depth_info.get("depth_5m") not in ["Unknown", "Error"]:
             tooltip_text += f"\n🏊 Depth (5m from shore): {depth_info['depth_5m']}m"
@@ -536,3 +560,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
