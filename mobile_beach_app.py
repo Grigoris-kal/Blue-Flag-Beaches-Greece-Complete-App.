@@ -128,37 +128,6 @@ st.set_page_config(
 # CORE FUNCTIONS
 # ======================
 @st.cache_data
-
-def find_depth_data(lat: float, lon: float, depth_data: dict):
-    """Find depth data for given coordinates"""
-    if not depth_data or 'beaches' not in depth_data:
-        return None
-    
-    # Try exact match first
-    exact_key = f"{lat}_{lon}"
-    if exact_key in depth_data['beaches']:
-        return depth_data['beaches'][exact_key].get('depth_info')
-    
-    # Try with 7 decimal rounding (same as database)
-    lat_7 = round(lat, 7)
-    lon_7 = round(lon, 7)
-    rounded_key_7 = f"{lat_7}_{lon_7}"
-    if rounded_key_7 in depth_data['beaches']:
-        return depth_data['beaches'][rounded_key_7].get('depth_info')
-    
-    # Try different decimal precisions
-    for decimals in (6, 5, 4):
-        lat_rounded = round(lat, decimals)
-        lon_rounded = round(lon, decimals)
-        rounded_key = f"{lat_rounded}_{lon_rounded}"
-        
-        if rounded_key in depth_data['beaches']:
-            return depth_data['beaches'][rounded_key].get('depth_info')
-    
-    return None
-
-
-
 def transliterate_greek_to_latin(text):
     """Convert Greek text to Latin characters"""
     if pd.isna(text):
@@ -276,14 +245,13 @@ def create_mobile_map(df, weather_cache, depth_data):
     map_data = []
     matched_count = 0
     total_count = len(df)
-    depth_matched_count = 0  # Track depth matches
     
     for _, row in df.iterrows():
         lat = row['Latitude']
         lon = row['Longitude']
         
-        # Use flexible matching for weather
-        weather, matched_key = find_best_weather_match(lat, lon, weather_cache, max_distance_km=0.5)
+        # Use flexible matching
+        weather, matched_key = find_best_weather_match(lat, lon, weather_cache, max_distance_km=1.0)
         
         if weather:
             matched_count += 1
@@ -291,12 +259,13 @@ def create_mobile_map(df, weather_cache, depth_data):
         # Build tooltip
         tooltip_text = f"📌 GPS: {lat:.4f}, {lon:.4f}"
         
-        # Depth data - use separate matching function
-        depth_info = find_depth_data(lat, lon, depth_data)
+        # Depth data - use matched key if available
+        depth_info = None
+        if matched_key and 'beaches' in depth_data and matched_key in depth_data['beaches']:
+            depth_info = depth_data['beaches'][matched_key].get('depth_info')
         
-        if depth_info and depth_info.get("depth_5m") not in ["Unknown", "Error", None]:
+        if depth_info and depth_info.get("depth_5m") not in ["Unknown", "Error"]:
             tooltip_text += f"\n🏊 Depth (5m from shore): {depth_info['depth_5m']}m"
-            depth_matched_count += 1
         
         # Add weather data if available
         if weather:
@@ -329,16 +298,10 @@ def create_mobile_map(df, weather_cache, depth_data):
     
     # Show matching statistics
     match_rate = (matched_count / total_count * 100) if total_count > 0 else 0
-    depth_rate = (depth_matched_count / total_count * 100) if total_count > 0 else 0
-    
     st.sidebar.metric("Beaches with weather", f"{matched_count}/{total_count}", f"{match_rate:.1f}%")
-    st.sidebar.metric("Beaches with depth data", f"{depth_matched_count}/{total_count}", f"{depth_rate:.1f}%")
     
     if matched_count < total_count:
         st.sidebar.warning(f"{total_count - matched_count} beaches without weather data")
-    
-    if depth_matched_count < total_count:
-        st.sidebar.info(f"{total_count - depth_matched_count} beaches without depth data")
     
     # Create the map
     layer = pdk.Layer(
@@ -372,6 +335,7 @@ def create_mobile_map(df, weather_cache, depth_data):
             }
         }
     )
+
 # ======================
 # MAIN APP
 # ======================
@@ -572,6 +536,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
