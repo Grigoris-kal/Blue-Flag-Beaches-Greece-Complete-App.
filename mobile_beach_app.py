@@ -303,7 +303,7 @@ def create_mobile_map(df, weather_cache, depth_data):
             # Indicate if it's an approximate match
             exact_key = f"{lat}_{lon}"
             if matched_key != exact_key:
-                tooltip_text += f"\nℹ️ Approximate weather data"
+                tooltip_text += f""
         
         map_data.append({
             'lat': lat,
@@ -560,4 +560,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
