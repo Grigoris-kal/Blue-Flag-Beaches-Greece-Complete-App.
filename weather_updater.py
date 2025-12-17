@@ -81,12 +81,77 @@ def update_all_beaches():
     total_beaches = len(df)
     logging.info(f"📊 Processing {total_beaches} beaches")
     
+    # -----------------------------------------------------------------
+    # START OF AGREED-UPON CHANGES
+    # -----------------------------------------------------------------
+    # 1. GET UNIQUE COORDINATES
+    # Create a DataFrame with just coordinates and drop duplicates
+    unique_coords_df = df[['Latitude', 'Longitude']].drop_duplicates()
+    unique_coords = list(unique_coords_df.itertuples(index=False, name=None)) # List of (lat, lon) tuples
+    logging.info(f"📍 Found {len(unique_coords)} unique locations")
+    
+    # 2. FETCH BATCHED WEATHER DATA FOR ALL UNIQUE LOCATIONS AT ONCE
+    weather_batch_url = "https://api.open-meteo.com/v1/forecast?current=temperature_2m,wind_speed_10m,wind_direction_10m&timezone=auto"
+    for i, (lat, lon) in enumerate(unique_coords):
+        separator = "&" if i == 0 else ","
+        weather_batch_url += f"{separator}latitude={lat}&longitude={lon}"
+    
+    weather_data_map = {}  # To store results: key=(lat,lon), value=weather_data
+    try:
+        logging.info("🌤️  Fetching batched weather data...")
+        response = requests.get(weather_batch_url, timeout=30)
+        response.raise_for_status()
+        weather_batch_data = response.json()
+        # The API returns data matching the order of coordinates sent
+        current_weather_list = weather_batch_data.get('current', [])
+        # Map data back to each coordinate
+        for idx, (lat, lon) in enumerate(unique_coords):
+            if idx < len(current_weather_list):
+                weather_data_map[(lat, lon)] = current_weather_list[idx]
+            else:
+                weather_data_map[(lat, lon)] = {}
+    except Exception as e:
+        logging.error(f"❌ Failed to fetch batched weather: {e}")
+        # Fallback: create empty map to avoid crash, but entries will have N/A
+        weather_data_map = {coord: {} for coord in unique_coords}
+    
+    # Small delay between the two batch API calls
+    time.sleep(0.5)
+    
+    # 3. FETCH BATCHED MARINE DATA (Similar structure)
+    marine_batch_url = "https://marine-api.open-meteo.com/v1/marine?current=wave_height,wave_direction,wave_period,sea_surface_temperature"
+    for i, (lat, lon) in enumerate(unique_coords):
+        separator = "&" if i == 0 else ","
+        marine_batch_url += f"{separator}latitude={lat}&longitude={lon}"
+    
+    marine_data_map = {}  # To store results: key=(lat,lon), value=marine_data
+    try:
+        logging.info("🌊  Fetching batched marine data...")
+        response = requests.get(marine_batch_url, timeout=30)
+        response.raise_for_status()
+        marine_batch_data = response.json()
+        current_marine_list = marine_batch_data.get('current', [])
+        # Map data back to each coordinate
+        for idx, (lat, lon) in enumerate(unique_coords):
+            if idx < len(current_marine_list):
+                marine_data_map[(lat, lon)] = current_marine_list[idx]
+            else:
+                marine_data_map[(lat, lon)] = {}
+    except Exception as e:
+        logging.error(f"❌ Failed to fetch batched marine data: {e}")
+        # Fallback: create empty map
+        marine_data_map = {coord: {} for coord in unique_coords}
+    # -----------------------------------------------------------------
+    # END OF AGREED-UPON CHANGES
+    # -----------------------------------------------------------------
+    
     # Load existing cache
     cache = load_existing_cache()
     updates = 0
     new_beaches = 0
     errors = 0
     
+    # THE ORIGINAL LOOP TO PROCESS EACH BEACH ROW REMAINS
     for idx, row in df.iterrows():
         beach_name = str(row['Name'])
         try:
@@ -101,24 +166,13 @@ def update_all_beaches():
         
         # Check if we need to update (always update for now)
         try:
-            # Fetch weather data
-            weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,wind_speed_10m,wind_direction_10m&timezone=auto"
-            response = requests.get(weather_url, timeout=15)
-            response.raise_for_status()
-            weather_data = response.json()
-            
-            # Small delay between APIs
-            time.sleep(0.1)
-            
-            # Fetch marine data
-            marine_url = f"https://marine-api.open-meteo.com/v1/marine?latitude={lat}&longitude={lon}&current=wave_height,wave_direction,wave_period,sea_surface_temperature"
-            response = requests.get(marine_url, timeout=15)
-            response.raise_for_status()
-            marine_data = response.json()
-            
-            # Extract values
-            current_weather = weather_data.get('current', {})
-            current_marine = marine_data.get('current', {})
+            # -----------------------------------------------------------------
+            # MODIFIED DATA FETCHING: USE BATCHED DATA MAPS
+            # -----------------------------------------------------------------
+            # Get weather and marine data from the pre-fetched batch maps
+            current_weather = weather_data_map.get((lat, lon), {})
+            current_marine = marine_data_map.get((lat, lon), {})
+            # -----------------------------------------------------------------
             
             # Create or update entry
             entry = {
@@ -144,13 +198,9 @@ def update_all_beaches():
             if updates % 10 == 0:
                 logging.info(f"Progress: {updates}/{total_beaches} beaches updated")
             
-            # Rate limiting
+            # Rate limiting (now only between beach processing, not API calls)
             time.sleep(0.05)
             
-        except requests.exceptions.RequestException as e:
-            logging.error(f"⚠️ API error for {beach_name}: {e}")
-            errors += 1
-            time.sleep(1)  # Longer delay on error
         except Exception as e:
             logging.error(f"❌ Error processing {beach_name}: {e}")
             errors += 1
@@ -159,7 +209,6 @@ def update_all_beaches():
     save_cache(cache)
     logging.info(f"🎉 COMPLETED: {updates} updates, {new_beaches} new beaches, {errors} errors")
     logging.info(f"📁 Cache now has {len(cache)} total entries")
-
 def main():
     parser = argparse.ArgumentParser(description='Simple Weather Updater')
     parser.add_argument('--once', action='store_true', help='Run once and exit')
@@ -188,3 +237,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
