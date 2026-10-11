@@ -529,6 +529,10 @@ def main():
             position: relative !important;
             z-index: 10 !important;
         }
+        .deck-tooltip {
+            transform: translate(-50%, -120%) !important;
+        }
+        
     }
     </style>
     """, unsafe_allow_html=True)
