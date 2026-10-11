@@ -524,7 +524,7 @@ def main():
         .search-container {
             width: 160% !important;
             margin-left: -30% !important;
-            margin-top: -50% !important;
+            margin-top: 1rem !important;
             margin-bottom: 2rem !important;
             position: relative !important;
             z-index: 10 !important;
