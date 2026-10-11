@@ -516,9 +516,9 @@ def main():
         }
         
         .stDeckGlJsonChart > div {
-            height: 71.5vh !important;
+            height: 82vh !important;
             width: 100% !important;
-            margin-bottom: 4rem !important;
+            margin-bottom: 1rem !important;
         }
         
         .search-container {
