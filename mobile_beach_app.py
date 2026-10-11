@@ -537,7 +537,7 @@ def main():
     /* --- ADD THIS NEW MOBILE BLOCK RIGHT BELOW IT --- */
     @media (max-width: 767px) {
         .deck-tooltip {
-            transform: translate(-30px, 50px) !important;
+            transform: translate(-60px, 1100px) !important;
         }
     }
     
