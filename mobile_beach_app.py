@@ -534,6 +534,14 @@ def main():
         }
         
     }
+    /* --- ADD THIS NEW MOBILE BLOCK RIGHT BELOW IT --- */
+    @media (max-width: 767px) {
+        .deck-tooltip {
+            transform: translate(-30px, 50px) !important;
+        }
+    }
+    
+    
     </style>
     """, unsafe_allow_html=True)
     
