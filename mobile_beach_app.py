@@ -512,13 +512,13 @@ def main():
             width: 160% !important;
             margin-left: -30% !important;
             position: relative !important;
-            margin-top: -2rem !important;
+            margin-top: -3rem !important;
         }
         
         .stDeckGlJsonChart > div {
-            height: 82vh !important;
+            height: 92vh !important;
             width: 100% !important;
-            margin-bottom: 1rem !important;
+            margin-bottom: 0rem !important;
         }
         
         .search-container {
