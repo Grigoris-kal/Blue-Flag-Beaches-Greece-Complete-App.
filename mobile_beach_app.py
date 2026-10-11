@@ -530,7 +530,7 @@ def main():
             z-index: 10 !important;
         }
         .deck-tooltip {
-            transform: translate(40px, 20px) !important;
+            transform: translate(100px, 70px) !important;
         }
         
     }
